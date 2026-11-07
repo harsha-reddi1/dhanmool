@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import EditExpenseModal from '../components/EditExpenseModal';
 import { 
   AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar 
 } from 'recharts';
 import { 
   TrendingDown, TrendingUp, AlertTriangle, ShieldCheck, Filter, Eye, EyeOff, 
-  Trash2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar,
+  Trash2, Edit2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 
@@ -44,24 +45,41 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [projects, setProjects] = useState([]);
 
-  const loadData = async () => {
-    setLoading(true);
+  // Load auxiliary data for editing modal
+  useEffect(() => {
+    Promise.all([api.getEvents(), api.getProjects()])
+      .then(([evList, projList]) => {
+        setEvents(evList || []);
+        setProjects(projList || []);
+      })
+      .catch(() => {});
+  }, []);
+
+  const loadData = async (bypassCache = false) => {
+    // Only trigger full loading screen if we don't have any cached data yet
+    if (!dashboardData) {
+      setLoading(true);
+    }
     try {
-      const data = await api.getDashboard({
-        month: selectedMonth,
-        year: selectedYear,
-        include_events: includeEvents,
-      });
+      const [data, expList] = await Promise.all([
+        api.getDashboard({
+          month: selectedMonth,
+          year: selectedYear,
+          include_events: includeEvents,
+        }, bypassCache),
+        api.getExpenses({
+          month: selectedMonth,
+          year: selectedYear,
+          include_events: includeEvents,
+          limit: 50,
+        }, bypassCache),
+      ]);
       setDashboardData(data);
-
-      const expList = await api.getExpenses({
-        month: selectedMonth,
-        year: selectedYear,
-        include_events: includeEvents,
-        limit: 50,
-      });
-      setExpenses(expList);
+      setExpenses(expList || []);
     } catch (err) {
       console.error('Failed to load dashboard:', err);
     } finally {
@@ -73,11 +91,23 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
     loadData();
   }, [selectedMonth, selectedYear, includeEvents]);
 
+  // Reactive listener to revalidate dashboard in background when cache invalidates
+  useEffect(() => {
+    const handleInvalidation = (e) => {
+      const tags = e.detail?.tags || [];
+      if (tags.length === 0 || tags.includes('dashboard') || tags.includes('expenses')) {
+        loadData(true);
+      }
+    };
+    window.addEventListener('dhanmool:cache-invalidated', handleInvalidation);
+    return () => window.removeEventListener('dhanmool:cache-invalidated', handleInvalidation);
+  }, [selectedMonth, selectedYear, includeEvents]);
+
   const handleDeleteExpense = async (id) => {
     if (!confirm('Are you sure you want to delete this expense?')) return;
     try {
       await api.deleteExpense(id);
-      loadData();
+      loadData(true);
     } catch (err) {
       alert(err.message || 'Failed to delete');
     }
@@ -482,13 +512,24 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                             )}
                           </div>
 
-                          <button
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors active:scale-95"
-                            title="Delete transaction"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingExpense(exp)}
+                              className="p-1 rounded text-slate-500 hover:text-indigo-400 active:text-indigo-300 transition-colors active:scale-95 cursor-pointer"
+                              title="Edit transaction"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExpense(exp.id)}
+                              className="p-1 rounded text-slate-500 hover:text-rose-400 active:text-rose-300 transition-colors active:scale-95 cursor-pointer"
+                              title="Delete transaction"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
                         <div className="flex items-baseline justify-between gap-2">
@@ -573,13 +614,24 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                               {currency}{parseFloat(exp.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </td>
                             <td className="py-3 text-right pr-1">
-                              <button
-                                onClick={() => handleDeleteExpense(exp.id)}
-                                className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors"
-                                title="Delete transaction"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingExpense(exp)}
+                                  className="p-1 rounded text-slate-500 hover:text-indigo-400 active:text-indigo-300 transition-colors cursor-pointer"
+                                  title="Edit transaction"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExpense(exp.id)}
+                                  className="p-1 rounded text-slate-500 hover:text-rose-400 active:text-rose-300 transition-colors cursor-pointer"
+                                  title="Delete transaction"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -622,6 +674,16 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         </div>
 
       </div>
+
+      {/* Edit Expense Modal */}
+      <EditExpenseModal
+        isOpen={Boolean(editingExpense)}
+        expense={editingExpense}
+        onClose={() => setEditingExpense(null)}
+        onExpenseUpdated={() => loadData(true)}
+        events={events}
+        projects={projects}
+      />
 
     </div>
   );

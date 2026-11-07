@@ -106,38 +106,43 @@ export default function Navbar({ activeTab, setActiveTab, onOpenQuickAdd, onOpen
                 </button>
 
                 {showProfileMenu && (
-                  <div 
-                    className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-                    onMouseLeave={() => setShowProfileMenu(false)}
-                  >
-                    <div className="px-3 py-2 border-b border-slate-800">
-                      <p className="text-xs font-semibold text-white truncate">{user?.full_name}</p>
-                      <p className="text-[11px] text-slate-400 truncate font-mono">{user?.email}</p>
-                      <p className="text-[10px] text-slate-500 mt-1 font-mono truncate">ID: {user?.id?.slice(0, 8)}...</p>
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 bg-transparent" 
+                      onClick={() => setShowProfileMenu(false)} 
+                    />
+                    <div 
+                      className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    >
+                      <div className="px-3 py-2 border-b border-slate-800">
+                        <p className="text-xs font-semibold text-white truncate">{user?.full_name}</p>
+                        <p className="text-[11px] text-slate-400 truncate font-mono">{user?.email}</p>
+                        <p className="text-[10px] text-slate-500 mt-1 font-mono truncate">ID: {user?.id?.slice(0, 8)}...</p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          onOpenProfile();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 text-left transition-colors cursor-pointer"
+                      >
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Profile & Milestones</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          logout();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 text-left transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Log Out</span>
+                      </button>
                     </div>
-
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        onOpenProfile();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 text-left transition-colors cursor-pointer"
-                    >
-                      <User className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Profile & Milestones</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        logout();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 text-left transition-colors cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5 text-rose-400" />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
+                  </>
                 )}
               </div>
 
@@ -146,37 +151,6 @@ export default function Navbar({ activeTab, setActiveTab, onOpenQuickAdd, onOpen
           </div>
         </div>
       </header>
-
-      {/* Mobile Fixed Bottom Navigation Bar (App-like thumb reach) */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 safe-bottom md:hidden shadow-2xl">
-        <div className="grid grid-flow-col auto-cols-fr items-center px-1 py-1.5">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer min-h-[48px] active:scale-90 ${
-                  isActive 
-                    ? item.isAdminTab 
-                      ? 'text-amber-400 font-bold' 
-                      : 'text-emerald-400 font-bold' 
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-                <span className="text-[10px] mt-1 tracking-tight leading-none">
-                  {item.shortLabel || item.label.split(' ')[0]}
-                </span>
-                {isActive && (
-                  <span className={`w-1 h-1 rounded-full mt-1 ${item.isAdminTab ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
     </>
   );
 }

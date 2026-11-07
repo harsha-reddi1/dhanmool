@@ -40,6 +40,18 @@ export default function LendingPage({ onOpenQuickAdd }) {
     loadLending();
   }, [directionFilter, statusFilter]);
 
+  // Reactive background refresh when lending cache is invalidated
+  useEffect(() => {
+    const handleInvalidation = (e) => {
+      const tags = e.detail?.tags || [];
+      if (tags.length === 0 || tags.includes('lending')) {
+        loadLending();
+      }
+    };
+    window.addEventListener('dhanmool:cache-invalidated', handleInvalidation);
+    return () => window.removeEventListener('dhanmool:cache-invalidated', handleInvalidation);
+  }, [directionFilter, statusFilter]);
+
   const openRepayModal = async (rec) => {
     setSelectedLending(rec);
     setRepayAmount(rec.outstanding_amount);
@@ -298,8 +310,14 @@ export default function LendingPage({ onOpenQuickAdd }) {
 
       {/* Record Repayment Modal (Mobile bottom sheet with quick-settle buttons) */}
       {showRepayModal && selectedLending && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowRepayModal(false)}
+        >
+          <div 
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
             <h3 className="text-base font-bold text-white">Record Settlement / Repayment</h3>
             <p className="text-xs text-slate-400">
