@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,10 +14,16 @@ from .routers import (
     shared,
 )
 
+# Docs disabled by default in production for security
+enable_docs = os.getenv("ENABLE_DOCS", "false").lower() == "true"
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=f"{settings.PROJECT_TAGLINE} — Unified personal and collaborative finance management for India.",
     version="1.0.0",
+    docs_url="/docs" if enable_docs else None,
+    redoc_url="/redoc" if enable_docs else None,
+    openapi_url="/openapi.json" if enable_docs else None,
 )
 
 # CORS Middleware
@@ -51,7 +58,6 @@ async def root():
         "app": settings.PROJECT_NAME,
         "tagline": settings.PROJECT_TAGLINE,
         "status": "online",
-        "docs": "/docs",
     }
 
 

@@ -6,7 +6,6 @@ DhanMool is an India-first personal and collaborative finance management applica
 ## 🚀 Live Deployments
 - **API (FastAPI on Vercel):** [https://dhanmool.vercel.app](https://dhanmool.vercel.app)
   - API Health: `https://dhanmool.vercel.app/api/health`
-  - Swagger Documentation: `https://dhanmool.vercel.app/docs`
 - **UI (React on GitHub Pages):** [https://harsha-reddi1.github.io/dhanmool/](https://harsha-reddi1.github.io/dhanmool/)
 - **GitHub Repository:** [https://github.com/harsha-reddi1/dhanmool](https://github.com/harsha-reddi1/dhanmool)
 
