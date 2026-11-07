@@ -73,17 +73,17 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
     <div className="space-y-6">
       
       {/* Top Banner & Filter Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-slate-900/60 border border-slate-800 p-3.5 sm:p-4 rounded-2xl">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
             Financial Dashboard
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
             Real-time Indian cashflow, UPI micro-spends & sinking fund analysis.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           
           {/* Month & Year Selectors */}
           <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white">
@@ -115,7 +115,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
           {/* Sinking Fund Isolation Toggle */}
           <button
             onClick={() => setIncludeEvents(!includeEvents)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
               includeEvents
                 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                 : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
@@ -123,7 +123,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
             title="Toggle whether one-off vacation or festival sinking fund spends skew your standard monthly living averages"
           >
             {includeEvents ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            <span>{includeEvents ? 'All Cashflows (Events On)' : 'Sinking Funds Isolated'}</span>
+            <span>{includeEvents ? 'Events On' : 'Sinking Funds Isolated'}</span>
           </button>
 
           <button
@@ -360,81 +360,151 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div>
             {expenses.length === 0 ? (
               <div className="py-12 text-center text-xs text-slate-500">
                 No expenses found for this month. Click "+ Add Spend" above to log one!
               </div>
             ) : (
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 font-medium">
-                    <th className="pb-3 pl-1">Date</th>
-                    <th className="pb-3">Merchant / Item</th>
-                    <th className="pb-3">Category</th>
-                    <th className="pb-3">Mode</th>
-                    <th className="pb-3 text-right">Amount</th>
-                    <th className="pb-3 text-right pr-1">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
+              <>
+                {/* Mobile Cards View (Visible on < md) */}
+                <div className="block md:hidden space-y-2.5">
                   {expenses.map((exp) => {
                     const cat = exp.dm_categories || {};
                     const isEventLinked = Boolean(exp.event_id);
                     return (
-                      <tr key={exp.id} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3 pl-1 font-mono text-slate-400 whitespace-nowrap">
-                          {exp.spent_at}
-                        </td>
-                        <td className="py-3">
-                          <div className="font-medium text-white truncate max-w-[160px]">
-                            {exp.merchant || 'Expense'}
-                          </div>
-                          {exp.notes && (
-                            <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                              {exp.notes}
-                            </div>
-                          )}
-                          {isEventLinked && (
-                            <span className="inline-block mt-0.5 text-[9px] bg-purple-500/20 text-purple-300 px-1 py-0.2 rounded border border-purple-500/30">
-                              Event Sinking Fund
+                      <div 
+                        key={exp.id} 
+                        className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 flex flex-col gap-2 hover:border-slate-700 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span 
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                              style={{ 
+                                backgroundColor: `${cat.color || '#6366F1'}20`, 
+                                color: cat.color || '#818CF8',
+                                border: `1px solid ${cat.color || '#6366F1'}40` 
+                              }}
+                            >
+                              {cat.name ? cat.name.split('(')[0].trim() : 'General'}
                             </span>
-                          )}
-                        </td>
-                        <td className="py-3">
-                          <span 
-                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                            style={{ 
-                              backgroundColor: `${cat.color || '#6366F1'}20`, 
-                              color: cat.color || '#818CF8',
-                              border: `1px solid ${cat.color || '#6366F1'}40` 
-                            }}
-                          >
-                            {cat.name ? cat.name.split('(')[0].trim() : 'General'}
-                          </span>
-                        </td>
-                        <td className="py-3 text-slate-300">
-                          <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
-                            {exp.payment_mode || 'UPI'}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right font-mono font-bold text-white whitespace-nowrap">
-                          {currency}{parseFloat(exp.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="py-3 text-right pr-1">
+                            <span className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-400 font-mono">
+                              {exp.payment_mode || 'UPI'}
+                            </span>
+                            {isEventLinked && (
+                              <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/30">
+                                Sinking Fund
+                              </span>
+                            )}
+                          </div>
+
                           <button
                             onClick={() => handleDeleteExpense(exp.id)}
-                            className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors"
+                            className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors active:scale-95"
                             title="Delete transaction"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        </td>
-                      </tr>
+                        </div>
+
+                        <div className="flex items-baseline justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-white text-sm truncate">
+                              {exp.merchant || 'Expense'}
+                            </p>
+                            {exp.notes && (
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                                {exp.notes}
+                              </p>
+                            )}
+                          </div>
+                          <p className="font-mono font-bold text-white text-base shrink-0">
+                            {currency}{parseFloat(exp.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-slate-900">
+                          <span>{exp.spent_at}</span>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+
+                {/* Desktop Table View (Visible on >= md) */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 font-medium">
+                        <th className="pb-3 pl-1">Date</th>
+                        <th className="pb-3">Merchant / Item</th>
+                        <th className="pb-3">Category</th>
+                        <th className="pb-3">Mode</th>
+                        <th className="pb-3 text-right">Amount</th>
+                        <th className="pb-3 text-right pr-1">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {expenses.map((exp) => {
+                        const cat = exp.dm_categories || {};
+                        const isEventLinked = Boolean(exp.event_id);
+                        return (
+                          <tr key={exp.id} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 pl-1 font-mono text-slate-400 whitespace-nowrap">
+                              {exp.spent_at}
+                            </td>
+                            <td className="py-3">
+                              <div className="font-medium text-white truncate max-w-[160px]">
+                                {exp.merchant || 'Expense'}
+                              </div>
+                              {exp.notes && (
+                                <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
+                                  {exp.notes}
+                                </div>
+                              )}
+                              {isEventLinked && (
+                                <span className="inline-block mt-0.5 text-[9px] bg-purple-500/20 text-purple-300 px-1 py-0.2 rounded border border-purple-500/30">
+                                  Event Sinking Fund
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3">
+                              <span 
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                style={{ 
+                                  backgroundColor: `${cat.color || '#6366F1'}20`, 
+                                  color: cat.color || '#818CF8',
+                                  border: `1px solid ${cat.color || '#6366F1'}40` 
+                                }}
+                              >
+                                {cat.name ? cat.name.split('(')[0].trim() : 'General'}
+                              </span>
+                            </td>
+                            <td className="py-3 text-slate-300">
+                              <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">
+                                {exp.payment_mode || 'UPI'}
+                              </span>
+                            </td>
+                            <td className="py-3 text-right font-mono font-bold text-white whitespace-nowrap">
+                              {currency}{parseFloat(exp.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-3 text-right pr-1">
+                              <button
+                                onClick={() => handleDeleteExpense(exp.id)}
+                                className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors"
+                                title="Delete transaction"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
 

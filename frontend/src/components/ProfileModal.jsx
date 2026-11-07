@@ -73,25 +73,25 @@ export default function ProfileModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-900/50">
           <div className="flex items-center gap-2">
             <User className="w-5 h-5 text-emerald-400" />
             <h3 className="text-base font-semibold text-white">Profile & Milestones</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex border-b border-slate-800 bg-slate-950 px-6 pt-2 gap-4 text-xs">
+        <div className="flex border-b border-slate-800 bg-slate-950 px-5 sm:px-6 pt-2 gap-4 text-xs">
           <button
             onClick={() => setActiveTab('profile')}
             className={`pb-2.5 font-medium border-b-2 transition-colors cursor-pointer ${
@@ -114,7 +114,7 @@ export default function ProfileModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto">
+        <div className="p-4 sm:p-6 overflow-y-auto pb-8 sm:pb-6">
           {activeTab === 'profile' ? (
             <form onSubmit={handleProfileSave} className="space-y-4">
               

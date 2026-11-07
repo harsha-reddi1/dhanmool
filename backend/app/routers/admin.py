@@ -28,6 +28,16 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class UpdateUserRequest(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    anniversary_date: Optional[date] = None
+    monthly_budget_target: Optional[float] = None
+    currency_symbol: Optional[str] = None
+
+
 @router.get("/users")
 async def list_users(admin_payload: dict = Depends(get_current_admin_payload)):
     users = await supabase.get("dm_users", {"select": "id,email,full_name,role,is_active,created_at,monthly_budget_target,currency_symbol,date_of_birth,anniversary_date", "order": "created_at.desc"})
@@ -98,6 +108,96 @@ async def reset_user_password(
     if not updated:
         raise HTTPException(status_code=404, detail="User not found.")
     return {"message": "User password reset successfully."}
+
+
+@router.put("/users/{user_id}")
+async def update_user(
+    user_id: str,
+    req: UpdateUserRequest,
+    admin_payload: dict = Depends(get_current_admin_payload),
+):
+    existing = await supabase.get("dm_users", {"id": f"eq.{user_id}"})
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    update_data = {}
+    if req.email is not None and req.email.strip() and req.email.lower().strip() != existing[0].get("email"):
+        check_email = await supabase.get("dm_users", {"email": f"eq.{req.email.lower().strip()}"})
+        if check_email:
+            raise HTTPException(status_code=400, detail=f"Email '{req.email}' is already registered.")
+        update_data["email"] = req.email.lower().strip()
+
+    if req.full_name is not None and req.full_name.strip():
+        update_data["full_name"] = req.full_name.strip()
+
+    if req.role is not None and req.role in ["admin", "member"]:
+        update_data["role"] = req.role
+
+    if req.date_of_birth is not None:
+        update_data["date_of_birth"] = str(req.date_of_birth)
+
+    if req.anniversary_date is not None:
+        update_data["anniversary_date"] = str(req.anniversary_date)
+
+    if req.monthly_budget_target is not None:
+        update_data["monthly_budget_target"] = req.monthly_budget_target
+
+    if req.currency_symbol is not None:
+        update_data["currency_symbol"] = req.currency_symbol
+
+    if not update_data:
+        return {k: v for k, v in existing[0].items() if k != "hashed_password"}
+
+    updated = await supabase.patch("dm_users", {"id": f"eq.{user_id}"}, update_data)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update user profile.")
+    return {k: v for k, v in updated[0].items() if k != "hashed_password"}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    admin_payload: dict = Depends(get_current_admin_payload),
+):
+    if admin_payload.get("sub") == user_id:
+        raise HTTPException(
+            status_code=400, detail="Security Safeguard: You cannot delete your own logged-in admin account."
+        )
+
+    existing = await supabase.get("dm_users", {"id": f"eq.{user_id}"})
+    if not existing:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # 1. Clean up project memberships
+    try:
+        await supabase.delete("dm_shared_project_members", {"user_id": f"eq.{user_id}"})
+    except Exception:
+        pass
+
+    # 2. Clean up lending records & repayments
+    try:
+        lendings = await supabase.get("dm_informal_lending", {"user_id": f"eq.{user_id}"})
+        for l in (lendings or []):
+            await supabase.delete("dm_lending_repayments", {"lending_id": f"eq.{l['id']}"})
+        await supabase.delete("dm_informal_lending", {"user_id": f"eq.{user_id}"})
+    except Exception:
+        pass
+
+    # 3. Clean up user expenses
+    try:
+        await supabase.delete("dm_expenses", {"user_id": f"eq.{user_id}"})
+    except Exception:
+        pass
+
+    # 4. Clean up user events
+    try:
+        await supabase.delete("dm_events", {"user_id": f"eq.{user_id}"})
+    except Exception:
+        pass
+
+    # 5. Delete the user record
+    await supabase.delete("dm_users", {"id": f"eq.{user_id}"})
+    return {"message": f"User account '{existing[0].get('full_name')}' was successfully removed."}
 
 
 @router.get("/stats")

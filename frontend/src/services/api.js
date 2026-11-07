@@ -104,6 +104,8 @@ export const api = {
   // Admin
   getAdminUsers: () => request('/admin/users'),
   createAdminUser: (data) => request('/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateAdminUser: (userId, data) => request(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteAdminUser: (userId) => request(`/admin/users/${userId}`, { method: 'DELETE' }),
   toggleUserStatus: (userId, isActive) => request(`/admin/users/${userId}/status`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) }),
   resetUserPassword: (userId, newPassword) => request(`/admin/users/${userId}/reset-password`, { method: 'POST', body: JSON.stringify({ new_password: newPassword }) }),
   getAdminStats: () => request('/admin/stats'),
