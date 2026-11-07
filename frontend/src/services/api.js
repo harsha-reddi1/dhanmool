@@ -1,4 +1,4 @@
-const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || 'https://flying-lagoon-njg6bho.tmp.now';
+const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || 'https://dhanmool.vercel.app';
 const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 const API_BASE = (isLocal ? '' : PROD_API_URL.replace(/\/$/, '')) + '/api/v1';
 
