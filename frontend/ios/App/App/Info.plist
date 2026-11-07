@@ -66,5 +66,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DhanMool requires microphone access to enable voice-based expense entry and natural speech commands with the financial advisor.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>DhanMool uses speech recognition to convert your spoken financial queries and expenses into text.</string>
 </dict>
 </plist>
