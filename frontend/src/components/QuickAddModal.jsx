@@ -147,8 +147,11 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
         
+        {/* Mobile Bottom-sheet Drag Handle */}
+        <div className="w-12 h-1 bg-slate-700/60 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0 sm:hidden" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-800 bg-slate-900/50">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3 sm:py-4 border-b border-slate-800 bg-slate-900/50">
           <div className="flex items-center gap-2">
             <span className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
               ₹
@@ -163,7 +166,7 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
           </button>
         </div>
 
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 pb-8 sm:pb-6">
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 pb-8 sm:pb-6 momentum-scroll">
           
           {/* Smart Quick Entry (Clean & Voice-enabled) */}
           <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
@@ -250,13 +253,24 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
           <form onSubmit={handleSubmit} className="space-y-4">
             
             {/* Amount & Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Amount (₹) *
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
+                    Amount (₹) *
+                  </label>
+                  {amount && (
+                    <button
+                      type="button"
+                      onClick={() => setAmount('')}
+                      className="text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-bold">₹</span>
+                  <span className="absolute left-3.5 top-2.5 text-emerald-400 text-base font-bold">₹</span>
                   <input
                     type="number"
                     step="0.01"
@@ -264,15 +278,51 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-sm text-white font-mono font-semibold focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-2.5 text-base text-white font-mono font-bold focus:outline-none focus:border-emerald-500"
                   />
+                </div>
+
+                {/* Quick Add Amount Buttons (Mobile thumb-friendly) */}
+                <div className="flex items-center gap-1.5 mt-2 overflow-x-auto no-scrollbar py-0.5">
+                  {[100, 200, 500, 1000, 2000, 5000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAmount(prev => ((parseFloat(prev) || 0) + preset).toString())}
+                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[11px] shrink-0 border border-slate-700/60 active:scale-95 transition-transform cursor-pointer"
+                    >
+                      +₹{preset >= 1000 ? `${preset/1000}k` : preset}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Date
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
+                    Date
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSpentAt(new Date().toISOString().split('T')[0])}
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const y = new Date();
+                        y.setDate(y.getDate() - 1);
+                        setSpentAt(y.toISOString().split('T')[0]);
+                      }}
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                    >
+                      Yesterday
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="date"
                   value={spentAt}
@@ -285,7 +335,7 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
             {/* If Expense Tab */}
             {activeTab === 'expense' ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                       Category *
@@ -293,7 +343,7 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
                     <select
                       value={categoryId}
                       onChange={(e) => setCategoryId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                     >
                       {categories.map((cat) => (
                         <option key={cat.id} value={cat.id}>
@@ -307,17 +357,23 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
                     <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                       Payment Mode
                     </label>
-                    <select
-                      value={paymentMode}
-                      onChange={(e) => setPaymentMode(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                    >
-                      <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
-                      <option value="Credit Card">Credit Card</option>
-                      <option value="Debit Card">Debit Card</option>
-                      <option value="Cash">Cash</option>
-                      <option value="NetBanking">NetBanking / NEFT</option>
-                    </select>
+                    {/* Segmented Touch Pills */}
+                    <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                      {['UPI', 'Card', 'Cash', 'NetBanking'].map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setPaymentMode(mode)}
+                          className={`py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                            paymentMode === mode
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {mode}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

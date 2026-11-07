@@ -6,7 +6,8 @@ import {
 } from 'recharts';
 import { 
   TrendingDown, TrendingUp, AlertTriangle, ShieldCheck, Filter, Eye, EyeOff, 
-  Trash2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar 
+  Trash2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -20,6 +21,25 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [includeEvents, setIncludeEvents] = useState(false); // Isolated sinking fund by default!
+  const [chartTab, setChartTab] = useState('timeline'); // Mobile chart toggle
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear(y => y - 1);
+    } else {
+      setSelectedMonth(m => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear(y => y + 1);
+    } else {
+      setSelectedMonth(m => m + 1);
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
@@ -72,21 +92,51 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   return (
     <div className="space-y-6">
       
-      {/* Top Banner & Filter Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-slate-900/60 border border-slate-800 p-3.5 sm:p-4 rounded-2xl">
-        <div>
-          <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-            Financial Dashboard
-          </h1>
-          <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
-            Real-time Indian cashflow, UPI micro-spends & sinking fund analysis.
-          </p>
+      {/* Top Banner & Month Navigator */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800 p-3 sm:p-4 rounded-2xl">
+        <div className="flex items-center justify-between sm:block">
+          <div>
+            <h1 className="text-base sm:text-xl font-bold text-white tracking-tight">
+              Financial Dashboard
+            </h1>
+            <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 hidden sm:block">
+              Real-time Indian cashflow, UPI micro-spends & sinking fund analysis.
+            </p>
+          </div>
+
+          {/* Quick Month Switcher for Mobile */}
+          <div className="flex sm:hidden items-center gap-1 bg-slate-950 border border-slate-800 rounded-xl px-2 py-1">
+            <button
+              onClick={handlePrevMonth}
+              className="p-1 rounded-md text-slate-400 hover:text-white active:scale-90"
+              title="Previous Month"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold text-white font-mono px-1">
+              {MONTH_NAMES[selectedMonth - 1].slice(0, 3)} '{selectedYear.toString().slice(-2)}
+            </span>
+            <button
+              onClick={handleNextMonth}
+              className="p-1 rounded-md text-slate-400 hover:text-white active:scale-90"
+              title="Next Month"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
           
-          {/* Month & Year Selectors */}
-          <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white">
+          {/* Month & Year Selectors (Desktop) */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white">
+            <button
+              onClick={handlePrevMonth}
+              className="p-0.5 rounded text-slate-400 hover:text-white"
+              title="Previous Month"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
             <Calendar className="w-3.5 h-3.5 text-emerald-400" />
             <select
               value={selectedMonth}
@@ -110,6 +160,13 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                 </option>
               ))}
             </select>
+            <button
+              onClick={handleNextMonth}
+              className="p-0.5 rounded text-slate-400 hover:text-white"
+              title="Next Month"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Sinking Fund Isolation Toggle */}
@@ -137,28 +194,28 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards (2x2 on Mobile, 4 columns on Desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         
         {/* Total Spend Card */}
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-lg relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Spent in {MONTH_NAMES[selectedMonth - 1]}</span>
-            <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <TrendingDown className="w-4 h-4" />
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-lg relative overflow-hidden">
+          <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
+            <span className="truncate">Spent in {MONTH_NAMES[selectedMonth - 1].slice(0, 3)}</span>
+            <span className="p-1 sm:p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+              <TrendingDown className="w-3.5 h-3.5" />
             </span>
           </div>
-          <div className="text-2xl font-bold font-mono text-white tracking-tight">
+          <div className="text-lg sm:text-2xl font-bold font-mono text-white tracking-tight truncate">
             {currency}{(summary.total_spent || 0).toLocaleString('en-IN')}
           </div>
-          <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Budget: {currency}{(summary.monthly_budget || 0).toLocaleString('en-IN')}</span>
-            <span className={`font-semibold ${summary.budget_used_percentage > 85 ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {summary.budget_used_percentage || 0}% used
+          <div className="mt-1.5 text-[10px] sm:text-[11px] text-slate-400 flex items-center justify-between">
+            <span className="truncate">Budget: {currency}{(summary.monthly_budget || 0).toLocaleString('en-IN')}</span>
+            <span className={`font-semibold shrink-0 ${summary.budget_used_percentage > 85 ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {summary.budget_used_percentage || 0}%
             </span>
           </div>
           {/* Progress bar */}
-          <div className="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+          <div className="w-full bg-slate-800 h-1 sm:h-1.5 rounded-full mt-1.5 overflow-hidden">
             <div 
               className={`h-full rounded-full transition-all duration-500 ${
                 summary.budget_used_percentage > 90 
@@ -173,69 +230,93 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         </div>
 
         {/* Daily Burn Rate Card */}
-        <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg">
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Daily Burn Rate</span>
-            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
-              <TrendingUp className="w-4 h-4" />
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg">
+          <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
+            <span className="truncate">Daily Burn</span>
+            <span className="p-1 sm:p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
+              <TrendingUp className="w-3.5 h-3.5" />
             </span>
           </div>
-          <div className="text-2xl font-bold font-mono text-white tracking-tight">
+          <div className="text-lg sm:text-2xl font-bold font-mono text-white tracking-tight truncate">
             {currency}{(summary.daily_burn_rate || 0).toLocaleString('en-IN')}
-            <span className="text-xs text-slate-400 font-sans font-normal"> / day</span>
+            <span className="text-[10px] sm:text-xs text-slate-400 font-sans font-normal"> /day</span>
           </div>
-          <div className="mt-2 text-[11px] text-slate-400">
-            Projected Month-End: <span className="font-semibold text-slate-200 font-mono">{currency}{(summary.projected_month_end || 0).toLocaleString('en-IN')}</span>
+          <div className="mt-1.5 text-[10px] sm:text-[11px] text-slate-400 truncate">
+            Projected: <span className="font-semibold text-slate-200 font-mono">{currency}{(summary.projected_month_end || 0).toLocaleString('en-IN')}</span>
           </div>
         </div>
 
         {/* Sinking Fund Pool Card */}
         <div 
           onClick={onOpenEvents}
-          className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-purple-500/40 shadow-lg cursor-pointer transition-colors"
+          className="p-3.5 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-purple-500/40 shadow-lg cursor-pointer transition-colors active:scale-95"
         >
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Sinking Fund Spends</span>
-            <span className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400">
-              <Plane className="w-4 h-4" />
+          <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
+            <span className="truncate">Sinking Funds</span>
+            <span className="p-1 sm:p-1.5 rounded-lg bg-purple-500/10 text-purple-400 shrink-0">
+              <Plane className="w-3.5 h-3.5" />
             </span>
           </div>
-          <div className="text-2xl font-bold font-mono text-purple-300 tracking-tight">
+          <div className="text-lg sm:text-2xl font-bold font-mono text-purple-300 tracking-tight truncate">
             {currency}{(summary.isolated_event_spend || 0).toLocaleString('en-IN')}
           </div>
-          <div className="mt-2 text-[11px] text-purple-400/80 flex items-center justify-between">
-            <span>Vacations & Festivals</span>
-            <span className="underline font-semibold">View Events →</span>
+          <div className="mt-1.5 text-[10px] sm:text-[11px] text-purple-400/80 flex items-center justify-between">
+            <span className="truncate">Festivals & Trips</span>
+            <span className="underline font-semibold shrink-0">View →</span>
           </div>
         </div>
 
         {/* Informal Udhar Net Position Card */}
         <div 
           onClick={onOpenLending}
-          className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 shadow-lg cursor-pointer transition-colors"
+          className="p-3.5 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 shadow-lg cursor-pointer transition-colors active:scale-95"
         >
-          <div className="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
-            <span>Net Udhar Position</span>
-            <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
-              <ShieldCheck className="w-4 h-4" />
+          <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
+            <span className="truncate">Net Udhar</span>
+            <span className="p-1 sm:p-1.5 rounded-lg bg-amber-500/10 text-amber-400 shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5" />
             </span>
           </div>
-          <div className="text-2xl font-bold font-mono text-white tracking-tight">
+          <div className="text-lg sm:text-2xl font-bold font-mono text-white tracking-tight truncate">
             {currency}{((summary.total_lent_unsettled || 0) - (summary.total_borrowed_unsettled || 0)).toLocaleString('en-IN')}
           </div>
-          <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between">
-            <span className="text-emerald-400 font-mono">+{currency}{(summary.total_lent_unsettled || 0).toLocaleString('en-IN')} to receive</span>
-            <span className="underline text-amber-300 font-semibold">Udhar →</span>
+          <div className="mt-1.5 text-[10px] sm:text-[11px] text-slate-400 flex items-center justify-between">
+            <span className="text-emerald-400 font-mono truncate">+{currency}{(summary.total_lent_unsettled || 0).toLocaleString('en-IN')}</span>
+            <span className="underline text-amber-300 font-semibold shrink-0">Udhar →</span>
           </div>
         </div>
 
+      </div>
+
+      {/* Mobile Chart Segmented Toggle */}
+      <div className="flex lg:hidden bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+        <button
+          type="button"
+          onClick={() => setChartTab('timeline')}
+          className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
+            chartTab === 'timeline' ? 'bg-slate-800 text-emerald-400 font-bold border border-slate-700 shadow-sm' : 'text-slate-400'
+          }`}
+        >
+          Daily Rhythm
+        </button>
+        <button
+          type="button"
+          onClick={() => setChartTab('categories')}
+          className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
+            chartTab === 'categories' ? 'bg-slate-800 text-emerald-400 font-bold border border-slate-700 shadow-sm' : 'text-slate-400'
+          }`}
+        >
+          Category Split
+        </button>
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Daily Timeline Area Chart */}
-        <div className="lg:col-span-2 p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+        <div className={`lg:col-span-2 p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl ${
+          chartTab === 'timeline' ? 'block' : 'hidden lg:block'
+        }`}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold text-white">Daily Spending Rhythm</h2>
@@ -246,7 +327,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
             </span>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-56 sm:h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={timeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
@@ -286,7 +367,9 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         </div>
 
         {/* Category Breakdown Donut Chart */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
+        <div className={`p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between ${
+          chartTab === 'categories' ? 'flex' : 'hidden lg:flex'
+        }`}>
           <div>
             <h2 className="text-sm font-semibold text-white">Category Distribution</h2>
             <p className="text-[11px] text-slate-400">Where your money flowed this month</p>

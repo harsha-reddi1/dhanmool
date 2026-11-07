@@ -11,6 +11,7 @@ import LendingPage from './pages/LendingPage';
 import EventsPage from './pages/EventsPage';
 import AIAdvisorPage from './pages/AIAdvisorPage';
 import AdminPage from './pages/AdminPage';
+import { Plus } from 'lucide-react';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -114,6 +115,15 @@ function AppContent() {
           <AdminPage />
         )}
       </main>
+
+      {/* Mobile Floating Action Button (Thumb-accessible 1-tap quick add) */}
+      <button
+        onClick={() => setIsQuickAddOpen(true)}
+        className="fixed bottom-20 right-4 z-40 md:hidden w-13 h-13 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/30 flex items-center justify-center transition-transform active:scale-90 border border-emerald-300/40 cursor-pointer"
+        aria-label="Add Transaction"
+      >
+        <Plus className="w-6 h-6 stroke-[2.5]" />
+      </button>
 
       {/* Quick Add Modal */}
       <QuickAddModal

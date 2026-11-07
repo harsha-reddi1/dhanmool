@@ -141,10 +141,39 @@ export default function EventsPage({ onOpenQuickAdd }) {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-6">
           
-          {/* Events Sidebar Cards */}
-          <div className="space-y-3">
+          {/* Mobile Horizontal Sinking Fund Selector (Swipeable Pills) */}
+          <div className="block lg:hidden">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              {events.map((ev) => {
+                const Icon = getEventIcon(ev.event_type);
+                const isSelected = selectedEventId === ev.id;
+                return (
+                  <button
+                    key={ev.id}
+                    onClick={() => setSelectedEventId(ev.id)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer active:scale-95 ${
+                      isSelected
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30 ring-1 ring-purple-400'
+                        : 'bg-slate-900 border border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{ev.title}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                      isSelected ? 'bg-purple-800 text-purple-100' : 'bg-purple-500/20 text-purple-300'
+                    }`}>
+                      {ev.progress_percentage}%
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Events Sidebar Cards (Desktop) */}
+          <div className="hidden lg:block space-y-3">
             <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">
               Active Sinking Funds ({events.length})
             </h2>
@@ -265,7 +294,7 @@ export default function EventsPage({ onOpenQuickAdd }) {
                   </div>
                 </div>
 
-                {/* Event Transactions Table */}
+                {/* Event Transactions Table & Cards */}
                 <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
                   <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-3">
                     Itemized Expenses
@@ -276,30 +305,53 @@ export default function EventsPage({ onOpenQuickAdd }) {
                       No expenses tagged to this fund yet. Use "+ Add Event Expense" to tag flight tickets, hotel, or gifts.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-800 text-slate-400">
-                            <th className="pb-2 pl-1">Date</th>
-                            <th className="pb-2">Merchant / Item</th>
-                            <th className="pb-2">Payment</th>
-                            <th className="pb-2 text-right pr-1">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60">
-                          {eventDetails.expenses?.map((e) => (
-                            <tr key={e.id} className="hover:bg-slate-800/30">
-                              <td className="py-2.5 pl-1 font-mono text-slate-400">{e.spent_at}</td>
-                              <td className="py-2.5 font-medium text-white">{e.merchant}</td>
-                              <td className="py-2.5 text-slate-400">{e.payment_mode}</td>
-                              <td className="py-2.5 text-right pr-1 font-mono font-bold text-white">
+                    <>
+                      {/* Mobile Cards for Event Expenses (< md) */}
+                      <div className="block md:hidden space-y-2.5">
+                        {eventDetails.expenses?.map((e) => (
+                          <div key={e.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-white truncate max-w-[180px]">{e.merchant}</span>
+                              <span className="font-mono font-bold text-white text-sm">
                                 {currency}{parseFloat(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1.5 border-t border-slate-900">
+                              <span className="text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded text-[10px]">
+                                {e.payment_mode || 'UPI'}
+                              </span>
+                              <span>{e.spent_at}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop Table (>= md) */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-800 text-slate-400">
+                              <th className="pb-2 pl-1">Date</th>
+                              <th className="pb-2">Merchant / Item</th>
+                              <th className="pb-2">Payment</th>
+                              <th className="pb-2 text-right pr-1">Amount</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60">
+                            {eventDetails.expenses?.map((e) => (
+                              <tr key={e.id} className="hover:bg-slate-800/30">
+                                <td className="py-2.5 pl-1 font-mono text-slate-400">{e.spent_at}</td>
+                                <td className="py-2.5 font-medium text-white">{e.merchant}</td>
+                                <td className="py-2.5 text-slate-400">{e.payment_mode}</td>
+                                <td className="py-2.5 text-right pr-1 font-mono font-bold text-white">
+                                  {currency}{parseFloat(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               </>
@@ -313,10 +365,11 @@ export default function EventsPage({ onOpenQuickAdd }) {
         </div>
       )}
 
-      {/* Create Event Modal */}
+      {/* Create Event Modal (Mobile Bottom Sheet) */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
             <h3 className="text-base font-bold text-white">Create Sinking Fund</h3>
             <form onSubmit={handleCreateEvent} className="space-y-3">
               <div>
@@ -411,13 +464,13 @@ export default function EventsPage({ onOpenQuickAdd }) {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs"
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs active:scale-95"
                 >
                   Create Fund
                 </button>

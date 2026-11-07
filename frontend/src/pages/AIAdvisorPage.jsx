@@ -275,13 +275,13 @@ export default function AIAdvisorPage({ onOpenEvents, onOpenLending }) {
           </div>
         )}
 
-        {/* Prompt Suggestions */}
-        <div className="py-2 flex flex-wrap gap-1.5 overflow-x-auto">
+        {/* Prompt Suggestions (Horizontal scroll strip on mobile) */}
+        <div className="py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-nowrap">
           {promptSuggestions.map((s, idx) => (
             <button
               key={idx}
               onClick={() => handleSendMessage(s)}
-              className="text-[11px] bg-slate-950 hover:bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-800 transition-colors whitespace-nowrap cursor-pointer active:scale-95"
+              className="text-[11px] bg-slate-950 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-full border border-slate-800 transition-colors whitespace-nowrap cursor-pointer active:scale-95 shrink-0"
             >
               {s}
             </button>

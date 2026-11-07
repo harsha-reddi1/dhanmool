@@ -163,10 +163,41 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-4 lg:gap-6">
           
-          {/* Projects Sidebar */}
-          <div className="space-y-3">
+          {/* Mobile Horizontal Project Selector (Thumb-friendly swipeable pill bar) */}
+          <div className="block lg:hidden">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              {projects.map((p) => {
+                const isSelected = selectedProject === p.id;
+                const isL1 = p.project_type === 'level1_continuous';
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedProject(p.id)}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer active:scale-95 ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400'
+                        : 'bg-slate-900 border border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <span>{p.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                      isSelected ? 'bg-indigo-800 text-indigo-100' : isL1 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-purple-500/20 text-purple-300'
+                    }`}>
+                      {isL1 ? 'L1 Continuous' : 'L2 Event'}
+                    </span>
+                    <span className="font-mono text-[11px] opacity-90">
+                      {currency}{(p.total_spent || 0).toLocaleString('en-IN')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Projects Sidebar (Desktop) */}
+          <div className="hidden lg:block space-y-3">
             <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">
               Your Shared Pools ({projects.length})
             </h2>
@@ -303,32 +334,55 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                       No shared expenses logged in this pool yet.
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-800 text-slate-400">
-                            <th className="pb-2 pl-1">Date</th>
-                            <th className="pb-2">Description</th>
-                            <th className="pb-2">Paid By</th>
-                            <th className="pb-2 text-right pr-1">Total Bill</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60">
-                          {projectDetails.expenses?.map((e) => (
-                            <tr key={e.id} className="hover:bg-slate-800/30">
-                              <td className="py-2.5 pl-1 font-mono text-slate-400">{e.spent_at}</td>
-                              <td className="py-2.5 font-medium text-white">{e.merchant}</td>
-                              <td className="py-2.5 text-slate-300">
-                                {e.dm_users?.full_name || 'Member'}
-                              </td>
-                              <td className="py-2.5 text-right pr-1 font-mono font-bold text-white">
+                    <>
+                      {/* Mobile Cards for Shared Bills (Visible on < md) */}
+                      <div className="block md:hidden space-y-2.5">
+                        {projectDetails.expenses?.map((e) => (
+                          <div key={e.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-white truncate max-w-[180px]">{e.merchant}</span>
+                              <span className="font-mono font-bold text-white text-sm">
                                 {currency}{parseFloat(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1.5 border-t border-slate-900">
+                              <span className="text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded text-[10px]">
+                                Paid by {e.dm_users?.full_name?.split(' ')[0] || 'Member'}
+                              </span>
+                              <span>{e.spent_at}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop Table (Visible on >= md) */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-800 text-slate-400">
+                              <th className="pb-2 pl-1">Date</th>
+                              <th className="pb-2">Description</th>
+                              <th className="pb-2">Paid By</th>
+                              <th className="pb-2 text-right pr-1">Total Bill</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60">
+                            {projectDetails.expenses?.map((e) => (
+                              <tr key={e.id} className="hover:bg-slate-800/30">
+                                <td className="py-2.5 pl-1 font-mono text-slate-400">{e.spent_at}</td>
+                                <td className="py-2.5 font-medium text-white">{e.merchant}</td>
+                                <td className="py-2.5 text-slate-300">
+                                  {e.dm_users?.full_name || 'Member'}
+                                </td>
+                                <td className="py-2.5 text-right pr-1 font-mono font-bold text-white">
+                                  {currency}{parseFloat(e.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               </>
@@ -342,10 +396,11 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
         </div>
       )}
 
-      {/* Create Project Modal */}
+      {/* Create Project Modal (Bottom sheet on mobile) */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
             <h3 className="text-base font-bold text-white">Create New Shared Project</h3>
             <form onSubmit={handleCreateProject} className="space-y-3">
               <div>
@@ -393,13 +448,13 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs active:scale-95"
                 >
                   Create Project
                 </button>
@@ -409,10 +464,11 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
         </div>
       )}
 
-      {/* Add Member Modal */}
+      {/* Add Member Modal (Bottom sheet on mobile) */}
       {showAddMemberModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
             <h3 className="text-base font-bold text-white">Add Member to Project</h3>
             <p className="text-xs text-slate-400">
               Enter the user's registered Email or User ID. The user must already be provisioned by a DhanMool Admin.
@@ -448,13 +504,13 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                 <button
                   type="button"
                   onClick={() => setShowAddMemberModal(false)}
-                  className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs active:scale-95"
                 >
                   Add User
                 </button>
@@ -464,10 +520,11 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
         </div>
       )}
 
-      {/* Log Shared Bill Modal */}
+      {/* Log Shared Bill Modal (Bottom sheet on mobile with quick amount chips) */}
       {showExpenseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
             <h3 className="text-base font-bold text-white">Log Shared Bill</h3>
             <p className="text-xs text-slate-400">
               You are paying upfront (Gross Outflow). The total will be split evenly across all members.
@@ -486,6 +543,26 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                   onChange={(e) => setExpAmount(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
                 />
+                {/* Quick Add Amount Chips for Mobile */}
+                <div className="flex items-center gap-1.5 mt-2 overflow-x-auto no-scrollbar">
+                  {[100, 200, 500, 1000, 2000, 5000].map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setExpAmount(prev => ((parseFloat(prev) || 0) + chip).toString())}
+                      className="text-[11px] font-mono px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-slate-700/60 whitespace-nowrap cursor-pointer transition-colors"
+                    >
+                      +{chip}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setExpAmount('')}
+                    className="text-[10px] text-slate-500 hover:text-slate-300 px-1.5 py-1"
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -518,13 +595,13 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                 <button
                   type="button"
                   onClick={() => setShowExpenseModal(false)}
-                  className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs"
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs active:scale-95"
                 >
                   Log Bill
                 </button>
