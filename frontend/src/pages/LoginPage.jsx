@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldAlert, KeyRound } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -128,7 +128,7 @@ export default function LoginPage() {
               onClick={fillDemoAdmin}
               className="w-full py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <KeyRound className="w-3.5 h-3.5" />
               <span>Fill Demo Super Admin Credentials</span>
             </button>
           </div>

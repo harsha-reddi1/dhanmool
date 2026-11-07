@@ -5,7 +5,7 @@ import {
   Users, 
   HandCoins, 
   CalendarRange, 
-  Sparkles, 
+  Bot, 
   ShieldAlert, 
   Plus, 
   LogOut, 
@@ -22,7 +22,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenQuickAdd, onOpen
     { id: 'shared', label: 'Shared Ledgers', shortLabel: 'Shared', icon: Users },
     { id: 'lending', label: 'Udhar Tracker', shortLabel: 'Udhar', icon: HandCoins },
     { id: 'events', label: 'Events & Sinking Funds', shortLabel: 'Events', icon: CalendarRange },
-    { id: 'ai', label: 'DhanMool AI', shortLabel: 'AI', icon: Sparkles, badge: 'Advisor' },
+    { id: 'ai', label: 'Financial Advisor', shortLabel: 'Advisor', icon: Bot },
   ];
 
   if (isAdmin) {
@@ -75,11 +75,6 @@ export default function Navbar({ activeTab, setActiveTab, onOpenQuickAdd, onOpen
                   >
                     <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1 py-0.2 rounded border border-purple-500/30 font-semibold">
-                        {item.badge}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -170,12 +165,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenQuickAdd, onOpen
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <div className="relative">
-                  <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
-                  {item.badge && (
-                    <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                  )}
-                </div>
+                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
                 <span className="text-[10px] mt-1 tracking-tight leading-none">
                   {item.shortLabel || item.label.split(' ')[0]}
                 </span>

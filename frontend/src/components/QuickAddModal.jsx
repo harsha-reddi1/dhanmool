@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { X, Sparkles, Wand2, Check, AlertCircle, ArrowUpRight, HandCoins } from 'lucide-react';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { X, Mic, Check, HandCoins } from 'lucide-react';
 
 export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events = [], projects = [] }) {
   const [categories, setCategories] = useState([]);
@@ -27,6 +28,21 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
   const [direction, setDirection] = useState('lent');
   const [expectedRepayDate, setExpectedRepayDate] = useState('');
 
+  // Voice speech recognition for quick spend entry
+  const { isListening, toggleListening } = useSpeechRecognition({
+    lang: 'en-IN',
+    onResult: (transcript, isFinal) => {
+      setNlInput(transcript);
+      if (isFinal) {
+        handleAIParse(transcript);
+      }
+    },
+    onError: (err) => {
+      setParseNotice(err);
+      setTimeout(() => setParseNotice(''), 4000);
+    },
+  });
+
   useEffect(() => {
     if (isOpen) {
       api.getCategories()
@@ -42,12 +58,13 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
 
   if (!isOpen) return null;
 
-  const handleAIParse = async () => {
-    if (!nlInput.trim()) return;
+  const handleAIParse = async (overrideText) => {
+    const textToParse = overrideText || nlInput;
+    if (!textToParse || !textToParse.trim()) return;
     setIsParsing(true);
     setParseNotice('');
     try {
-      const parsed = await api.parseNL(nlInput);
+      const parsed = await api.parseNL(textToParse.trim());
       if (parsed.amount) setAmount(parsed.amount);
       if (parsed.merchant) setMerchant(parsed.merchant);
       if (parsed.category_id) setCategoryId(parsed.category_id);
@@ -58,14 +75,14 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
         setActiveTab('lending');
         setDirection(parsed.lending_direction || 'lent');
         setContactName(parsed.merchant || 'Friend');
-        setParseNotice(`✨ AI recognized this as an Udhar (${parsed.lending_direction}) transaction!`);
+        setParseNotice(`Recognized as Udhar (${parsed.lending_direction}) entry`);
       } else {
         setActiveTab('expense');
-        setParseNotice(`✨ Auto-categorized as "${parsed.category_name}" via ${parsed.payment_mode}`);
+        setParseNotice(`Auto-filled: ${parsed.category_name || 'Expense'} via ${parsed.payment_mode || 'UPI'}`);
       }
     } catch (err) {
       console.error(err);
-      setParseNotice('Could not auto-parse. Please fill details manually.');
+      setParseNotice('Could not auto-parse text. Please fill manually.');
     } finally {
       setIsParsing(false);
     }
@@ -148,34 +165,56 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
 
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 pb-8 sm:pb-6">
           
-          {/* AI Quick Input Box */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-slate-900 border border-purple-500/30 shadow-inner">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-purple-400" />
-              <span className="text-xs font-semibold text-purple-300">Natural Language & Voice Parser</span>
+          {/* Smart Quick Entry (Clean & Voice-enabled) */}
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Quick Text & Voice Entry
+              </span>
+              {isListening && (
+                <span className="text-[10px] text-rose-400 font-mono animate-pulse flex items-center gap-1 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  Listening to voice...
+                </span>
+              )}
             </div>
             <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder='e.g., "Paid 450 at Swiggy via UPI" or "Lent 5000 to Rohan"'
-                value={nlInput}
-                onChange={(e) => setNlInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAIParse())}
-                className="flex-1 bg-slate-950 border border-purple-500/40 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-400"
-              />
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder={isListening ? "Listening... speak now" : 'e.g., "Paid 450 at Swiggy via UPI" or tap mic'}
+                  value={nlInput}
+                  onChange={(e) => setNlInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAIParse())}
+                  className={`w-full bg-slate-900 border rounded-lg pl-3 pr-9 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors ${
+                    isListening ? 'border-rose-500/60 ring-1 ring-rose-500/40' : 'border-slate-800 focus:border-emerald-500'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  title={isListening ? "Stop listening" : "Speak transaction details"}
+                  className={`absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors cursor-pointer ${
+                    isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={handleAIParse}
+                onClick={() => handleAIParse()}
                 disabled={isParsing || !nlInput.trim()}
-                className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium px-3 py-2 rounded-lg transition-all cursor-pointer"
+                className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold transition-colors cursor-pointer shrink-0"
               >
-                <Wand2 className="w-3.5 h-3.5" />
-                <span>{isParsing ? 'Parsing...' : 'AI Autofill'}</span>
+                {isParsing ? 'Parsing...' : 'Fill Form'}
               </button>
             </div>
             {parseNotice && (
-              <p className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1">
-                <Check className="w-3 h-3" /> {parseNotice}
+              <p className="text-[11px] text-emerald-400 flex items-center gap-1.5 pt-0.5">
+                <Check className="w-3.5 h-3.5 shrink-0" />
+                <span>{parseNotice}</span>
               </p>
             )}
           </div>
