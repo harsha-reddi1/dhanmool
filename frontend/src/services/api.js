@@ -1,5 +1,8 @@
+import { Capacitor } from '@capacitor/core';
+
 const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || 'https://dhanmool.vercel.app';
-const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const isNative = typeof window !== 'undefined' && (Capacitor.isNativePlatform() || window.location.protocol === 'capacitor:' || window.location.protocol === 'file:');
+const isLocal = typeof window !== 'undefined' && !isNative && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 const API_BASE = (isLocal ? '' : PROD_API_URL.replace(/\/$/, '')) + '/api/v1';
 
 function getToken() {

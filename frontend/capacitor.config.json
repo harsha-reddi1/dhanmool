@@ -1,0 +1,15 @@
+{
+  "appId": "app.dhanmool.app",
+  "appName": "DhanMool",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "dhanmool"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#070a12"
+    }
+  }
+}
