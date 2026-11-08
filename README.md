@@ -21,12 +21,4 @@ DhanMool is an India-first personal and collaborative finance management applica
 5. **DhanMool AI Advisor:** Contextual Indian financial intelligence with festival calendar awareness (Diwali, Eid, Rakhi), Section 80C tax planning, and natural language quick transaction logging.
 6. **Closed Admin Governance:** User registration is controlled by Super Administrators who provision user accounts from an Admin Console.
 
----
 
-## 🔐 Demo Credentials
-- **Super Administrator:**
-  - Email: `admin@dhanmool.app`
-  - Password: `Admin@12345`
-- **Standard Member:**
-  - Email: `vikram@dhanmool.app`
-  - Password: `Member@12345`
