@@ -25,7 +25,7 @@ export default function MobileBottomBar({ activeTab, setActiveTab }) {
   }
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 safe-bottom md:hidden shadow-2xl pointer-events-auto">
+    <nav className="mobile-bottom-bar fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 safe-bottom md:hidden shadow-2xl pointer-events-auto">
       <div className="flex items-center justify-around w-full px-1 py-1">
         {navItems.map((item) => {
           const Icon = item.icon;

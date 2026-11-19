@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useModalLock } from '../utils/modalManager';
 import { 
   HandCoins, Plus, ArrowUpRight, ArrowDownLeft, CheckCircle2, Clock, Trash2, Calendar, UserCheck 
 } from 'lucide-react';
@@ -19,6 +20,9 @@ export default function LendingPage({ onOpenQuickAdd }) {
   const [repayAmount, setRepayAmount] = useState('');
   const [repayNotes, setRepayNotes] = useState('');
   const [repaymentsList, setRepaymentsList] = useState([]);
+
+  // Lock body scroll and notify bottom bars when modal is open
+  useModalLock(showRepayModal);
 
   const loadLending = async () => {
     setLoading(true);
@@ -311,11 +315,11 @@ export default function LendingPage({ onOpenQuickAdd }) {
       {/* Record Repayment Modal (Mobile bottom sheet with quick-settle buttons) */}
       {showRepayModal && selectedLending && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowRepayModal(false)}
         >
           <div 
-            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 pb-6 sm:pb-6 space-y-4 max-h-[88vh] sm:max-h-[92vh] overflow-y-auto momentum-scroll touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
@@ -400,17 +404,17 @@ export default function LendingPage({ onOpenQuickAdd }) {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
                 <button
                   type="button"
                   onClick={() => setShowRepayModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-emerald-500/20"
                 >
                   Confirm Repayment
                 </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useModalLock } from '../utils/modalManager';
 import { 
   Users, Plus, UserPlus, ArrowRightLeft, Check, Shield, DollarSign, Calendar, Layers 
 } from 'lucide-react';
@@ -29,6 +30,9 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
   const [expAmount, setExpAmount] = useState('');
   const [expMerchant, setExpMerchant] = useState('');
   const [expNotes, setExpNotes] = useState('');
+
+  // Lock body scroll and notify bottom bars when modal is open
+  useModalLock(showCreateModal || showAddMemberModal || showExpenseModal);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -412,11 +416,11 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
       {/* Create Project Modal (Bottom sheet on mobile) */}
       {showCreateModal && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowCreateModal(false)}
         >
           <div 
-            className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+            className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 pb-6 sm:pb-6 space-y-4 max-h-[88vh] sm:max-h-[92vh] overflow-y-auto momentum-scroll touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
@@ -463,17 +467,17 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-indigo-600/20"
                 >
                   Create Project
                 </button>
@@ -486,11 +490,11 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
       {/* Add Member Modal (Bottom sheet on mobile) */}
       {showAddMemberModal && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowAddMemberModal(false)}
         >
           <div 
-            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 pb-6 sm:pb-6 space-y-4 max-h-[88vh] sm:max-h-[92vh] overflow-y-auto momentum-scroll touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
@@ -525,17 +529,17 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                 </p>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
                 <button
                   type="button"
                   onClick={() => setShowAddMemberModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-indigo-600/20"
                 >
                   Add User
                 </button>
@@ -548,11 +552,11 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
       {/* Log Shared Bill Modal (Bottom sheet on mobile with quick amount chips) */}
       {showExpenseModal && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowExpenseModal(false)}
         >
           <div 
-            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 p-5 sm:p-6 pb-6 sm:pb-6 space-y-4 max-h-[88vh] sm:max-h-[92vh] overflow-y-auto momentum-scroll touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
@@ -622,17 +626,17 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
                 <button
                   type="button"
                   onClick={() => setShowExpenseModal(false)}
-                  className="px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-emerald-500/20"
                 >
                   Log Bill
                 </button>

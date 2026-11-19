@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useModalLock } from '../utils/modalManager';
 import { X, Calendar, User, Lock, Check, ShieldCheck } from 'lucide-react';
 
 export default function ProfileModal({ isOpen, onClose }) {
   const { user, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+
+  // Lock body scroll and notify bottom bars when modal is open
+  useModalLock(isOpen);
 
   // Profile Form
   const [fullName, setFullName] = useState(user?.full_name || '');
@@ -84,11 +88,11 @@ export default function ProfileModal({ isOpen, onClose }) {
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div 
-        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col"
+        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 shadow-2xl overflow-hidden max-h-[88vh] sm:max-h-[92vh] flex flex-col touch-manipulation"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mt-3 mb-1 shrink-0" />
@@ -225,7 +229,7 @@ export default function ProfileModal({ isOpen, onClose }) {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-semibold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isSaving ? 'Saving...' : 'Update Milestones & Budget'}
               </button>
@@ -285,7 +289,7 @@ export default function ProfileModal({ isOpen, onClose }) {
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full min-h-[44px] py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Lock className="w-3.5 h-3.5 text-slate-400" />
                 <span>Change Password</span>

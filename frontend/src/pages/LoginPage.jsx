@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, ArrowRight, ShieldAlert, KeyRound } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldAlert } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -20,11 +20,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillDemoAdmin = () => {
-    setEmail('admin@dhanmool.app');
-    setPassword('Admin@12345');
   };
 
   return (
@@ -114,23 +109,14 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Superuser Provisioning Notice & Quick Demo Fill */}
-          <div className="pt-2 border-t border-slate-800/80 space-y-3">
+          {/* Superuser Provisioning Notice */}
+          <div className="pt-2 border-t border-slate-800/80">
             <div className="p-3 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] text-slate-400 flex items-start gap-2">
               <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>
-                <strong>Closed Membership:</strong> User registration is strictly managed by DhanMool Super Administrators.
+                <strong>Closed Membership:</strong> User registration and role permissions are strictly managed by DhanMool Administrators.
               </span>
             </div>
-
-            <button
-              type="button"
-              onClick={fillDemoAdmin}
-              className="w-full py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Fill Demo Super Admin Credentials</span>
-            </button>
           </div>
 
         </div>

@@ -19,9 +19,21 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [hasGlobalModal, setHasGlobalModal] = useState(false);
   const [events, setEvents] = useState([]);
   const [projects, setProjects] = useState([]);
   const [visitedTabs, setVisitedTabs] = useState(() => new Set(['dashboard']));
+
+  // Track global modal open state to prevent bottom buttons from overlapping modals
+  useEffect(() => {
+    const handler = (e) => {
+      setHasGlobalModal(Boolean(e.detail?.hasOpenModal));
+    };
+    window.addEventListener('dhanmool:modal-change', handler);
+    return () => window.removeEventListener('dhanmool:modal-change', handler);
+  }, []);
+
+  const isModalActive = isQuickAddOpen || isProfileOpen || hasGlobalModal;
 
   // Track visited tabs to keep them alive in memory (0ms instant tab switching)
   useEffect(() => {
@@ -146,21 +158,25 @@ function AppContent() {
         )}
       </main>
 
-      {/* Mobile Floating Action Button (1-tap quick add, above main, below bottom bar) */}
-      <button
-        type="button"
-        onClick={() => setIsQuickAddOpen(true)}
-        className="fixed bottom-20 right-4 z-40 md:hidden w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/30 flex items-center justify-center transition-transform active:scale-90 border border-emerald-300/40 cursor-pointer pointer-events-auto touch-manipulation"
-        aria-label="Add Transaction"
-      >
-        <Plus className="w-6 h-6 stroke-[2.5]" />
-      </button>
+      {/* Mobile Floating Action Button (hidden when any modal is open) */}
+      {!isModalActive && (
+        <button
+          type="button"
+          onClick={() => setIsQuickAddOpen(true)}
+          className="mobile-fab fixed bottom-20 right-4 z-30 md:hidden w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/30 flex items-center justify-center transition-transform active:scale-90 border border-emerald-300/40 cursor-pointer pointer-events-auto touch-manipulation"
+          aria-label="Add Transaction"
+        >
+          <Plus className="w-6 h-6 stroke-[2.5]" />
+        </button>
+      )}
 
-      {/* Mobile Bottom Navigation Bar (Dedicated, z-50, always clickable) */}
-      <MobileBottomBar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+      {/* Mobile Bottom Navigation Bar (hidden when any modal is open) */}
+      {!isModalActive && (
+        <MobileBottomBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
+      )}
 
       {/* Quick Add Modal */}
       <QuickAddModal

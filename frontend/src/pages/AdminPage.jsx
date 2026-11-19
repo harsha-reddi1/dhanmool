@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useModalLock } from '../utils/modalManager';
 import { 
   ShieldAlert, UserPlus, KeyRound, Edit3, Trash2, Users, Database, 
   Activity, DollarSign, Calendar, X, Check, AlertTriangle, ShieldCheck 
@@ -40,6 +41,9 @@ export default function AdminPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [resetPw, setResetPw] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
+
+  // Lock body scroll and notify bottom bars when any admin modal is open
+  useModalLock(showEditModal || showCreateModal || showResetModal);
 
   const loadData = async () => {
     setLoading(true);
@@ -439,11 +443,11 @@ export default function AdminPage() {
       {/* --- EDIT USER MODAL --- */}
       {showEditModal && editingUser && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
           onClick={() => setShowEditModal(false)}
         >
           <div 
-            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 pb-6 sm:pb-6 space-y-4 max-h-[88vh] sm:max-h-[90vh] overflow-y-auto momentum-scroll touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2" />
@@ -548,18 +552,18 @@ export default function AdminPage() {
                 </p>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 disabled:opacity-50"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   {isUpdating ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -572,11 +576,11 @@ export default function AdminPage() {
       {/* --- PROVISION USER MODAL --- */}
       {showCreateModal && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
           onClick={() => setShowCreateModal(false)}
         >
           <div 
-            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 pb-6 sm:pb-6 space-y-4 max-h-[88vh] sm:max-h-[90vh] overflow-y-auto momentum-scroll touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2" />
@@ -699,17 +703,17 @@ export default function AdminPage() {
                 </p>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
                 >
                   Create & Activate Account
                 </button>
@@ -722,11 +726,11 @@ export default function AdminPage() {
       {/* --- RESET PASSWORD MODAL --- */}
       {showResetModal && selectedUser && (
         <div 
-          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
           onClick={() => setShowResetModal(false)}
         >
           <div 
-            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 space-y-4"
+            className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl bg-slate-900 border border-slate-800 p-5 sm:p-6 pb-6 sm:pb-6 space-y-4 touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-2" />
@@ -768,17 +772,17 @@ export default function AdminPage() {
                 </p>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
                 <button
                   type="button"
                   onClick={() => setShowResetModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs active:scale-95 cursor-pointer"
                 >
                   Save New Password
                 </button>

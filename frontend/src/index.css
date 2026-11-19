@@ -35,6 +35,19 @@
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
 }
 
+/* Hide floating elements when any modal or sheet is open so they never intercept taps or cover buttons */
+body.modal-open .mobile-bottom-bar,
+body.modal-open .mobile-fab {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+body.modal-open {
+  overflow: hidden !important;
+}
+
 /* Hide scrollbar for horizontal tab/pill sliders */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

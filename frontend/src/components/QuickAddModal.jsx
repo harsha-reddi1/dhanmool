@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useModalLock } from '../utils/modalManager';
 import { X, Mic, Check, HandCoins } from 'lucide-react';
 
 export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events = [], projects = [] }) {
@@ -10,6 +11,9 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
   const [parseNotice, setParseNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('expense'); // 'expense' or 'lending'
+
+  // Lock body scroll and notify bottom bars when modal is open
+  useModalLock(isOpen);
 
   // Form states
   const [amount, setAmount] = useState('');
@@ -155,11 +159,11 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div 
-        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col"
+        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl bg-slate-900 border-t sm:border border-slate-800 shadow-2xl overflow-hidden max-h-[88vh] sm:max-h-[92vh] flex flex-col touch-manipulation"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -536,18 +540,18 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <div className="flex items-center justify-end gap-3 pt-3 pb-4 sm:pb-0 border-t border-slate-800 safe-bottom">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer active:scale-95"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? 'Saving...' : activeTab === 'expense' ? 'Log Spend (Gross Outflow)' : 'Record Udhar'}
               </button>
