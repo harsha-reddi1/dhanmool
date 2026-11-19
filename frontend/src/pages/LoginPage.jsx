@@ -121,11 +121,6 @@ export default function LoginPage() {
 
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-[11px] text-slate-500 mt-6 font-mono">
-          DhanMool v1.0 • Built with React, FastAPI & Supabase
-        </p>
-
       </div>
     </div>
   );
