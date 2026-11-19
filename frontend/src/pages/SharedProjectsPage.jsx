@@ -6,7 +6,7 @@ import {
   Users, Plus, UserPlus, ArrowRightLeft, Check, DollarSign, Calendar, Layers,
   Share2, Copy, ExternalLink, QrCode, Search, Filter, Trash2, ArrowUpRight, 
   ArrowDownRight, PieChart as PieChartIcon, Sparkles, Smartphone, MessageCircle, 
-  AlertCircle, RefreshCw, ChevronRight, X
+  AlertCircle, RefreshCw, ChevronRight, X, Edit2, Settings
 } from 'lucide-react';
 
 // Color palette for member avatars and contribution bars
@@ -109,8 +109,91 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
 
+  // Edit Project Details Modal
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [editProjectForm, setEditProjectForm] = useState({ name: '', description: '', project_type: 'level1_continuous' });
+
+  const handleOpenEditProject = () => {
+    if (!projectDetails) return;
+    setEditProjectForm({
+      name: projectDetails.name || '',
+      description: projectDetails.description || '',
+      project_type: projectDetails.project_type || 'level1_continuous',
+    });
+    setShowEditProjectModal(true);
+  };
+
+  const handleUpdateProject = async (e) => {
+    e.preventDefault();
+    if (!editProjectForm.name.trim()) return;
+    try {
+      await api.updateProject(selectedProject, {
+        name: editProjectForm.name.trim(),
+        description: editProjectForm.description.trim(),
+        project_type: editProjectForm.project_type,
+      });
+      setShowEditProjectModal(false);
+      loadProjects();
+      loadProjectDetails(selectedProject);
+    } catch (err) {
+      alert(err.message || 'Failed to update project');
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!confirm(`Are you sure you want to delete the shared pool "${projectDetails?.name}"? All associated ledger data will be removed.`)) return;
+    try {
+      await api.deleteProject(selectedProject);
+      setShowEditProjectModal(false);
+      setSelectedProject(null);
+      setProjectDetails(null);
+      await loadProjects();
+    } catch (err) {
+      alert(err.message || 'Failed to delete project');
+    }
+  };
+
+  // Edit Shared Expense Modal
+  const [editingExpenseItem, setEditingExpenseItem] = useState(null);
+  const [editExpenseForm, setEditExpenseForm] = useState({ amount: '', merchant: '', notes: '', spent_at: '' });
+
+  const handleOpenEditExpense = (exp) => {
+    setEditingExpenseItem(exp);
+    setEditExpenseForm({
+      amount: exp.amount?.toString() || '',
+      merchant: exp.merchant || '',
+      notes: exp.notes || '',
+      spent_at: exp.spent_at || new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const handleUpdateSharedExpense = async (e) => {
+    e.preventDefault();
+    if (!editExpenseForm.amount || parseFloat(editExpenseForm.amount) <= 0) return;
+    try {
+      await api.updateExpense(editingExpenseItem.id, {
+        amount: parseFloat(editExpenseForm.amount),
+        merchant: editExpenseForm.merchant.trim() || 'Shared Spend',
+        notes: editExpenseForm.notes.trim(),
+        spent_at: editExpenseForm.spent_at,
+      });
+      setEditingExpenseItem(null);
+      loadProjectDetails(selectedProject);
+      loadProjects();
+    } catch (err) {
+      alert(err.message || 'Failed to update receipt');
+    }
+  };
+
   // Lock body scroll and notify bottom bars when modal is open
-  useModalLock(showCreateModal || showAddMemberModal || showExpenseModal || Boolean(settleModalData));
+  useModalLock(
+    showCreateModal || 
+    showAddMemberModal || 
+    showExpenseModal || 
+    Boolean(settleModalData) || 
+    showEditProjectModal || 
+    Boolean(editingExpenseItem)
+  );
 
   const loadProjects = async () => {
     setLoading(true);
@@ -497,7 +580,15 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                      <button
+                        onClick={handleOpenEditProject}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs text-slate-200 transition-colors cursor-pointer active:scale-95"
+                        title="Edit pool name, description or type"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit Pool</span>
+                      </button>
                       <button
                         onClick={() => setShowAddMemberModal(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs text-slate-200 transition-colors cursor-pointer active:scale-95"
@@ -934,13 +1025,22 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                                   <div className="flex items-center gap-2">
                                     <span>{e.spent_at}</span>
                                     {(isMyExpense || isOwner) && (
-                                      <button
-                                        onClick={() => handleDeleteSharedExpense(e.id)}
-                                        className="text-slate-500 hover:text-rose-400 p-0.5"
-                                        title="Delete receipt"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          onClick={() => handleOpenEditExpense(e)}
+                                          className="text-slate-400 hover:text-indigo-400 p-1 cursor-pointer"
+                                          title="Edit receipt"
+                                        >
+                                          <Edit2 className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteSharedExpense(e.id)}
+                                          className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
+                                          title="Delete receipt"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 </div>
@@ -982,13 +1082,22 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                                     </td>
                                     <td className="py-3 text-right pr-1">
                                       {(isMyExpense || isOwner) && (
-                                        <button
-                                          onClick={() => handleDeleteSharedExpense(e.id)}
-                                          className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
-                                          title="Delete receipt"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <button
+                                            onClick={() => handleOpenEditExpense(e)}
+                                            className="text-slate-400 hover:text-indigo-400 p-1 cursor-pointer"
+                                            title="Edit receipt"
+                                          >
+                                            <Edit2 className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteSharedExpense(e.id)}
+                                            className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
+                                            title="Delete receipt"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
                                       )}
                                     </td>
                                   </tr>
@@ -1319,6 +1428,199 @@ export default function SharedProjectsPage({ onOpenQuickAdd }) {
                   className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#00f5a0] hover:bg-emerald-400 text-slate-950 font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-emerald-500/20"
                 >
                   Log Bill
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Shared Project Modal */}
+      {showEditProjectModal && (
+        <div 
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowEditProjectModal(false)}
+        >
+          <div 
+            className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-[#0a0f1d] border-t sm:border border-white/10 p-5 sm:p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">Edit Shared Pool</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowEditProjectModal(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateProject} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Pool Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editProjectForm.name}
+                  onChange={(e) => setEditProjectForm({ ...editProjectForm, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Pool Type
+                </label>
+                <select
+                  value={editProjectForm.project_type}
+                  onChange={(e) => setEditProjectForm({ ...editProjectForm, project_type: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="level1_continuous">Level 1: Continuous Shared Ledger (Flatmates, Roommates)</option>
+                  <option value="level2_event">Level 2: Event-Based Pool (Goa Trip, Festival, Wedding)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows="2"
+                  value={editProjectForm.description}
+                  onChange={(e) => setEditProjectForm({ ...editProjectForm, description: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-white/5 safe-bottom">
+                {projectDetails?.created_by === user?.id ? (
+                  <button
+                    type="button"
+                    onClick={handleDeleteProject}
+                    className="px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition-colors cursor-pointer"
+                  >
+                    Delete Pool
+                  </button>
+                ) : <span />}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditProjectModal(false)}
+                    className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="min-h-[44px] px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6366F1] to-indigo-600 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-indigo-600/20"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Shared Expense / Receipt Modal */}
+      {editingExpenseItem && (
+        <div 
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setEditingExpenseItem(null)}
+        >
+          <div 
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-[#0a0f1d] border-t sm:border border-white/10 p-5 sm:p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">Edit Shared Receipt</h3>
+              <button 
+                type="button" 
+                onClick={() => setEditingExpenseItem(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Modifying this bill automatically updates the fair-share contribution split and settlement debts.
+            </p>
+
+            <form onSubmit={handleUpdateSharedExpense} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={editExpenseForm.amount}
+                  onChange={(e) => setEditExpenseForm({ ...editExpenseForm, amount: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00f5a0]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Merchant / Item Description *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editExpenseForm.merchant}
+                  onChange={(e) => setEditExpenseForm({ ...editExpenseForm, merchant: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00f5a0]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={editExpenseForm.spent_at}
+                  onChange={(e) => setEditExpenseForm({ ...editExpenseForm, spent_at: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00f5a0]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Notes
+                </label>
+                <input
+                  type="text"
+                  placeholder="Optional notes"
+                  value={editExpenseForm.notes}
+                  onChange={(e) => setEditExpenseForm({ ...editExpenseForm, notes: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00f5a0]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5 safe-bottom">
+                <button
+                  type="button"
+                  onClick={() => setEditingExpenseItem(null)}
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#00f5a0] hover:bg-emerald-400 text-slate-950 font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-emerald-500/20"
+                >
+                  Save Receipt
                 </button>
               </div>
             </form>

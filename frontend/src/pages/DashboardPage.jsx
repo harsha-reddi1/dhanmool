@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useModalLock } from '../utils/modalManager';
 import EditExpenseModal from '../components/EditExpenseModal';
 import { 
   AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar 
@@ -10,7 +11,7 @@ import {
   TrendingDown, TrendingUp, AlertTriangle, ShieldCheck, Filter, Eye, EyeOff, 
   Trash2, Edit2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar,
   ChevronLeft, ChevronRight, Mic, Check, RotateCcw, Sparkles, Clipboard, Compass, Coffee, ShoppingBasket, ArrowUpRight, ArrowDownRight, Flame,
-  CreditCard, Target, Activity, Tv, Music, Wifi, HeartPulse, CheckCircle2, ShieldAlert
+  CreditCard, Target, Activity, Tv, Music, Wifi, HeartPulse, CheckCircle2, ShieldAlert, Plus, X
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -50,6 +51,188 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   const [editingExpense, setEditingExpense] = useState(null);
   const [events, setEvents] = useState([]);
   const [projects, setProjects] = useState([]);
+
+  // Mandates State & Persistence
+  const [mandates, setMandates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dhanmool_mandates');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      { id: 'm1', name: 'Netflix 4K', category: 'Streaming', amount: 649, dueDay: 5, iconType: 'tv', type: 'UPI Autopay' },
+      { id: 'm2', name: 'Spotify Premium', category: 'Music', amount: 119, dueDay: 12, iconType: 'music', type: 'UPI Autopay' },
+      { id: 'm3', name: 'JioFiber / Airtel', category: 'Broadband', amount: 999, dueDay: 18, iconType: 'wifi', type: 'e-Mandate' },
+      { id: 'm4', name: 'Nifty 50 Index SIP', category: 'Investment', amount: 5000, dueDay: 10, iconType: 'activity', type: 'NACH Auto-Debit' },
+    ];
+  });
+  const [editingMandate, setEditingMandate] = useState(null);
+  const [mandateForm, setMandateForm] = useState({ name: '', amount: '', dueDay: 5, type: 'UPI Autopay', iconType: 'tv' });
+
+  const saveMandates = (updated) => {
+    setMandates(updated);
+    try {
+      localStorage.setItem('dhanmool_mandates', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const handleOpenMandateModal = (m = null) => {
+    if (m) {
+      setEditingMandate(m);
+      setMandateForm({
+        name: m.name,
+        amount: m.amount.toString(),
+        dueDay: m.dueDay || 1,
+        type: m.type || 'UPI Autopay',
+        iconType: m.iconType || 'tv',
+      });
+    } else {
+      setEditingMandate({ isNew: true });
+      setMandateForm({
+        name: '',
+        amount: '',
+        dueDay: 5,
+        type: 'UPI Autopay',
+        iconType: 'tv',
+      });
+    }
+  };
+
+  const handleSaveMandate = (e) => {
+    e.preventDefault();
+    if (!mandateForm.name.trim() || !mandateForm.amount) return;
+    const parsedAmt = parseFloat(mandateForm.amount) || 0;
+    const parsedDay = parseInt(mandateForm.dueDay, 10) || 1;
+
+    let updated = [];
+    if (editingMandate?.isNew) {
+      const newItem = {
+        id: 'm_' + Date.now(),
+        name: mandateForm.name.trim(),
+        amount: parsedAmt,
+        dueDay: Math.min(31, Math.max(1, parsedDay)),
+        type: mandateForm.type,
+        iconType: mandateForm.iconType,
+        category: 'Recurring',
+      };
+      updated = [...mandates, newItem];
+    } else {
+      updated = mandates.map((m) =>
+        m.id === editingMandate.id
+          ? {
+              ...m,
+              name: mandateForm.name.trim(),
+              amount: parsedAmt,
+              dueDay: Math.min(31, Math.max(1, parsedDay)),
+              type: mandateForm.type,
+              iconType: mandateForm.iconType,
+            }
+          : m
+      );
+    }
+    saveMandates(updated);
+    setEditingMandate(null);
+  };
+
+  const handleDeleteMandate = (id) => {
+    if (!confirm('Are you sure you want to remove this recurring mandate?')) return;
+    const updated = mandates.filter((m) => m.id !== id);
+    saveMandates(updated);
+    setEditingMandate(null);
+  };
+
+  const handleLogMandateSpend = async (mandate) => {
+    if (!confirm(`Log ₹${mandate.amount} for "${mandate.name}" as an expense today?`)) return;
+    try {
+      await api.createExpense({
+        amount: parseFloat(mandate.amount),
+        merchant: mandate.name,
+        payment_mode: mandate.type.includes('UPI') ? 'UPI' : 'NetBanking',
+        spent_at: new Date().toISOString().split('T')[0],
+        notes: `Recurring Autopay Mandate (${mandate.type})`,
+      });
+      loadData(true);
+      setQuickNotice(`⚡ Logged ₹${mandate.amount} for ${mandate.name}!`);
+      setTimeout(() => setQuickNotice(''), 5000);
+    } catch (err) {
+      alert(err.message || 'Failed to log mandate expense');
+    }
+  };
+
+  // Sinking Fund Modal State & Handlers
+  const [sinkingFundModal, setSinkingFundModal] = useState(null);
+  const [sinkingFundForm, setSinkingFundForm] = useState({ title: '', target_budget: '', event_type: 'vacation' });
+
+  const handleOpenSinkingFundModal = (fund = null, defaultPreset = null) => {
+    if (fund) {
+      setSinkingFundModal(fund);
+      setSinkingFundForm({
+        title: fund.title,
+        target_budget: fund.target_budget.toString(),
+        event_type: fund.event_type || 'vacation',
+      });
+    } else {
+      setSinkingFundModal({ isNew: true });
+      setSinkingFundForm({
+        title: defaultPreset?.title || '',
+        target_budget: defaultPreset?.budget?.toString() || '25000',
+        event_type: defaultPreset?.type || 'vacation',
+      });
+    }
+  };
+
+  const handleSaveSinkingFund = async (e) => {
+    e.preventDefault();
+    if (!sinkingFundForm.title.trim() || !sinkingFundForm.target_budget) return;
+    const budget = parseFloat(sinkingFundForm.target_budget) || 0;
+    try {
+      if (sinkingFundModal?.id && !sinkingFundModal.isNew) {
+        await api.updateEvent(sinkingFundModal.id, {
+          title: sinkingFundForm.title.trim(),
+          target_budget: budget,
+          event_type: sinkingFundForm.event_type,
+        });
+      } else {
+        await api.createEvent({
+          title: sinkingFundForm.title.trim(),
+          target_budget: budget,
+          event_type: sinkingFundForm.event_type,
+          is_sinking_fund: true,
+          isolate_from_analytics: true,
+        });
+      }
+      setSinkingFundModal(null);
+      const evList = await api.getEvents(true);
+      setEvents(evList || []);
+      loadData(true);
+    } catch (err) {
+      alert(err.message || 'Failed to save sinking fund');
+    }
+  };
+
+  // Monthly Budget Target Modal State & Handlers
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [budgetInput, setBudgetInput] = useState('');
+
+  const handleOpenBudgetModal = () => {
+    setBudgetInput((summary.monthly_budget || 30000).toString());
+    setShowBudgetModal(true);
+  };
+
+  const handleSaveBudget = async (e) => {
+    e.preventDefault();
+    const val = parseFloat(budgetInput);
+    if (!val || val <= 0) return;
+    try {
+      await api.updateProfile({ monthly_budget: val });
+      setShowBudgetModal(false);
+      loadData(true);
+    } catch (err) {
+      alert(err.message || 'Failed to update monthly budget target');
+    }
+  };
+
+  // Lock scrolling when any modal is open
+  useModalLock(Boolean(editingExpense) || Boolean(editingMandate) || Boolean(sinkingFundModal) || showBudgetModal);
 
   // 1-Tap Quick Spend & Voice States
   const [quickInput, setQuickInput] = useState('');
@@ -306,18 +489,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   }
 
   // UPI Autopay & Recurring Mandates Hub calculations
-  const defaultMandates = [
-    { id: 'm1', name: 'Netflix 4K', category: 'Streaming', amount: 649, dueDay: 5, iconType: 'tv', type: 'UPI Autopay' },
-    { id: 'm2', name: 'Spotify Premium', category: 'Music', amount: 119, dueDay: 12, iconType: 'music', type: 'UPI Autopay' },
-    { id: 'm3', name: 'JioFiber / Airtel', category: 'Broadband', amount: 999, dueDay: 18, iconType: 'wifi', type: 'e-Mandate' },
-    { id: 'm4', name: 'Nifty 50 Index SIP', category: 'Investment', amount: 5000, dueDay: 10, iconType: 'activity', type: 'NACH Auto-Debit' },
-  ];
-
-  const recurringMandates = defaultMandates.map(m => {
-    const matchedExp = expenses.find(e => 
-      new RegExp(m.name.split(' ')[0], 'i').test(e.merchant || '')
-    );
-    const amt = matchedExp ? parseFloat(matchedExp.amount) : m.amount;
+  const recurringMandates = mandates.map(m => {
     const diff = m.dueDay - currentDay;
     let dueStatus = '';
     if (diff === 0) dueStatus = 'Due Today ⚡';
@@ -326,13 +498,12 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
 
     return {
       ...m,
-      amount: amt,
       dueStatus,
       isNear: diff >= 0 && diff <= 5,
     };
   });
 
-  const totalAutopayCommitment = recurringMandates.reduce((sum, m) => sum + m.amount, 0);
+  const totalAutopayCommitment = recurringMandates.reduce((sum, m) => sum + (parseFloat(m.amount) || 0), 0);
 
   // 50/30/20 Cashflow Health & Runway Gauge calculations
   let needsSpend = 0;
@@ -733,13 +904,25 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onOpenEvents}
-                className="text-xs text-purple-400 hover:text-purple-300 font-semibold cursor-pointer shrink-0"
-              >
-                All Funds →
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {primaryEvent && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSinkingFundModal(primaryEvent)}
+                    className="px-2 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-[11px] font-semibold cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    <span>Edit Target</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onOpenEvents}
+                  className="text-xs text-purple-400 hover:text-purple-300 font-semibold cursor-pointer ml-1"
+                >
+                  All Funds →
+                </button>
+              </div>
             </div>
 
             {primaryEvent ? (
@@ -788,29 +971,36 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
             ) : (
               <div className="p-3.5 rounded-xl bg-slate-950/80 border border-purple-500/20 mt-1 space-y-2.5">
                 <p className="text-xs text-slate-300">
-                  Got an upcoming Diwali celebration, Goa trip, or wedding? Set up an isolated sinking fund to track event spends without messing up your routine living averages.
+                  Got an upcoming celebration, Goa trip, or wedding? Set up an isolated sinking fund to track event spends without messing up your routine living averages.
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                   <button
                     type="button"
-                    onClick={onOpenEvents}
+                    onClick={() => handleOpenSinkingFundModal(null, { title: 'Goa Trip 🏖️', budget: 25000, type: 'vacation' })}
                     className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium cursor-pointer transition-all active:scale-95"
                   >
                     🏖️ Goa Trip
                   </button>
                   <button
                     type="button"
-                    onClick={onOpenEvents}
+                    onClick={() => handleOpenSinkingFundModal(null, { title: 'Diwali Shopping 🪔', budget: 15000, type: 'festival' })}
                     className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium cursor-pointer transition-all active:scale-95"
                   >
                     🪔 Diwali Shopping
                   </button>
                   <button
                     type="button"
-                    onClick={onOpenEvents}
+                    onClick={() => handleOpenSinkingFundModal(null, { title: 'Tech Upgrade 📱', budget: 40000, type: 'other' })}
                     className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium cursor-pointer transition-all active:scale-95"
                   >
                     📱 Tech Upgrade
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSinkingFundModal(null)}
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/30 hover:bg-purple-500/40 text-purple-200 border border-purple-500/50 font-bold cursor-pointer transition-all active:scale-95"
+                  >
+                    + Custom Sinking Fund
                   </button>
                 </div>
               </div>
@@ -837,10 +1027,20 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                 </div>
               </div>
 
-              <span className="text-xs font-bold text-[#00f5a0] flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 fill-[#00f5a0]" />
-                <span>{disciplineStreak > 0 ? `${disciplineStreak}-Day Streak` : 'Streak Ready'}</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenBudgetModal}
+                  className="px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-[#00f5a0] border border-emerald-500/40 text-[10px] font-semibold cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  <span>Edit Target</span>
+                </button>
+                <span className="text-xs font-bold text-[#00f5a0] flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 fill-[#00f5a0]" />
+                  <span>{disciplineStreak > 0 ? `${disciplineStreak}-Day Streak` : 'Streak Ready'}</span>
+                </span>
+              </div>
             </div>
 
             {/* 7-Day Dot Trail */}
@@ -1320,11 +1520,21 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                   <p className="text-[10px] text-slate-400">Recurring debits & SIP commitments</p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm font-bold font-mono text-indigo-300">
-                  {currency}{totalAutopayCommitment.toLocaleString('en-IN')}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenMandateModal(null)}
+                  className="px-2 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[11px] font-semibold cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Add</span>
+                </button>
+                <div className="text-right">
+                  <div className="text-sm font-bold font-mono text-indigo-300">
+                    {currency}{totalAutopayCommitment.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono">/mo committed</div>
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono">/month committed</div>
               </div>
             </div>
 
@@ -1343,16 +1553,45 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                       {m.iconType === 'activity' && <Activity className="w-3.5 h-3.5 text-amber-400" />}
                     </div>
                     <div className="min-w-0">
-                      <div className="font-semibold text-white truncate max-w-[120px]">{m.name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">{m.type}</div>
+                      <div className="font-semibold text-white truncate max-w-[110px]">{m.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{m.type} • Day {m.dueDay}</div>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <div className="font-mono font-bold text-white">{currency}{m.amount.toLocaleString('en-IN')}</div>
-                    <span className={`text-[10px] font-medium ${m.isNear ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
-                      {m.dueStatus}
-                    </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right">
+                      <div className="font-mono font-bold text-white">{currency}{m.amount.toLocaleString('en-IN')}</div>
+                      <span className={`text-[10px] font-medium block ${m.isNear ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
+                        {m.dueStatus}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-0.5 pl-1">
+                      <button
+                        type="button"
+                        onClick={() => handleLogMandateSpend(m)}
+                        title="Log this mandate as paid in current month"
+                        className="px-1.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-[#00f5a0] border border-emerald-500/30 text-[10px] font-bold active:scale-95 transition-all cursor-pointer"
+                      >
+                        Log ⚡
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenMandateModal(m)}
+                        title="Edit mandate"
+                        className="p-1 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-slate-900 transition-colors cursor-pointer"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMandate(m.id)}
+                        title="Delete mandate"
+                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-900 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1384,9 +1623,18 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="text-sm font-bold font-mono text-[#00f5a0]">{healthScore}/100</div>
-                <div className="text-[10px] text-slate-400">FinHealth Score</div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenBudgetModal}
+                  className="px-2 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/60 text-[11px] font-medium transition-colors cursor-pointer active:scale-95"
+                >
+                  Adjust Budget
+                </button>
+                <div className="text-right">
+                  <div className="text-sm font-bold font-mono text-[#00f5a0]">{healthScore}/100</div>
+                  <div className="text-[10px] text-slate-400">FinHealth Score</div>
+                </div>
               </div>
             </div>
 
@@ -1447,6 +1695,311 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         events={events}
         projects={projects}
       />
+
+      {/* Edit / Add Recurring Autopay Mandate Modal */}
+      {editingMandate && (
+        <div 
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setEditingMandate(null)}
+        >
+          <div 
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-[#0a0f1d] border-t sm:border border-white/10 p-5 sm:p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">
+                {editingMandate.isNew ? 'Add Recurring Mandate' : 'Edit Mandate'}
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setEditingMandate(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMandate} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Subscription / Merchant Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Netflix, Spotify, JioFiber, Gym, SIP"
+                  value={mandateForm.name}
+                  onChange={(e) => setMandateForm({ ...mandateForm, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                    Amount (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={mandateForm.amount}
+                    onChange={(e) => setMandateForm({ ...mandateForm, amount: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                    Due Day of Month *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    required
+                    placeholder="Day (1-31)"
+                    value={mandateForm.dueDay}
+                    onChange={(e) => setMandateForm({ ...mandateForm, dueDay: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Rail / Mandate Type
+                </label>
+                <select
+                  value={mandateForm.type}
+                  onChange={(e) => setMandateForm({ ...mandateForm, type: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="UPI Autopay">UPI Autopay</option>
+                  <option value="e-Mandate">RBI e-Mandate</option>
+                  <option value="NACH Auto-Debit">NACH Auto-Debit / SIP</option>
+                  <option value="Credit Card Autopay">Credit Card Standing Instruction</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Category Icon
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { id: 'tv', label: 'Streaming' },
+                    { id: 'music', label: 'Audio' },
+                    { id: 'wifi', label: 'WiFi/ISP' },
+                    { id: 'activity', label: 'Health/SIP' },
+                  ].map((ic) => (
+                    <button
+                      key={ic.id}
+                      type="button"
+                      onClick={() => setMandateForm({ ...mandateForm, iconType: ic.id })}
+                      className={`p-2 rounded-xl border text-[11px] font-medium transition-all ${
+                        mandateForm.iconType === ic.id 
+                          ? 'bg-indigo-500/20 border-indigo-400 text-indigo-300' 
+                          : 'bg-slate-950 border-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {ic.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5 safe-bottom">
+                <button
+                  type="button"
+                  onClick={() => setEditingMandate(null)}
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-indigo-600/20"
+                >
+                  Save Mandate
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Create Sinking Fund Target Modal */}
+      {sinkingFundModal && (
+        <div 
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setSinkingFundModal(null)}
+        >
+          <div 
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-[#0a0f1d] border-t sm:border border-white/10 p-5 sm:p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">
+                {sinkingFundModal.isNew ? 'Create Sinking Fund' : 'Edit Sinking Fund Target'}
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setSinkingFundModal(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Isolated from your regular monthly burn rate so festival and vacation spikes never skew your daily discipline.
+            </p>
+
+            <form onSubmit={handleSaveSinkingFund} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Fund Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Goa Trip 2026, Diwali Shopping, Wedding Buffer"
+                  value={sinkingFundForm.title}
+                  onChange={(e) => setSinkingFundForm({ ...sinkingFundForm, title: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Target Budget (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="25000.00"
+                  value={sinkingFundForm.target_budget}
+                  onChange={(e) => setSinkingFundForm({ ...sinkingFundForm, target_budget: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Fund Type
+                </label>
+                <select
+                  value={sinkingFundForm.event_type}
+                  onChange={(e) => setSinkingFundForm({ ...sinkingFundForm, event_type: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+                >
+                  <option value="vacation">Vacation / Trip</option>
+                  <option value="festival">Festival (Diwali, Eid, Christmas)</option>
+                  <option value="wedding">Wedding / Family Function</option>
+                  <option value="birthday">Birthday / Milestone</option>
+                  <option value="other">Gadget / Tech Upgrade / Other</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5 safe-bottom">
+                <button
+                  type="button"
+                  onClick={() => setSinkingFundModal(null)}
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-purple-600/20"
+                >
+                  Save Fund
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust Monthly Budget Target Modal */}
+      {showBudgetModal && (
+        <div 
+          className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowBudgetModal(false)}
+        >
+          <div 
+            className="w-full max-w-sm rounded-t-3xl sm:rounded-2xl bg-[#0a0f1d] border-t sm:border border-white/10 p-5 sm:p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto sm:hidden mb-1" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white">Adjust Monthly Budget Target</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowBudgetModal(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Updates your baseline monthly ceiling and recalibrates your daily burn target ({currency}{Math.round((parseFloat(budgetInput) || 30000) / daysInMonth)}/day).
+            </p>
+
+            <form onSubmit={handleSaveBudget} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 uppercase mb-1">
+                  Monthly Budget (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="100"
+                  required
+                  placeholder="30000"
+                  value={budgetInput}
+                  onChange={(e) => setBudgetInput(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00f5a0]"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-white/5 space-y-1 text-xs">
+                <div className="flex justify-between text-slate-400">
+                  <span>Daily Burn Allowance:</span>
+                  <span className="font-mono text-white font-bold">
+                    {currency}{Math.round((parseFloat(budgetInput) || 0) / daysInMonth)} / day
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Days in Month:</span>
+                  <span className="font-mono text-slate-300">{daysInMonth} days</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/5 safe-bottom">
+                <button
+                  type="button"
+                  onClick={() => setShowBudgetModal(false)}
+                  className="min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl bg-[#00f5a0] hover:bg-emerald-400 text-slate-950 font-bold text-xs active:scale-95 cursor-pointer shadow-md shadow-emerald-500/20"
+                >
+                  Save Budget Target
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

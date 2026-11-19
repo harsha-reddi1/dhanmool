@@ -209,6 +209,16 @@ export const api = {
     invalidateCache(['shared']);
     return res;
   },
+  updateProject: async (id, data) => {
+    const res = await request(`/shared/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    invalidateCache(['shared']);
+    return res;
+  },
+  deleteProject: async (id) => {
+    const res = await request(`/shared/projects/${id}`, { method: 'DELETE' });
+    invalidateCache(['shared']);
+    return res;
+  },
   addProjectMember: async (projectId, data) => {
     const res = await request(`/shared/projects/${projectId}/members`, { method: 'POST', body: JSON.stringify(data) });
     invalidateCache(['shared']);

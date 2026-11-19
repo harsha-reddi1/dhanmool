@@ -16,6 +16,12 @@ class ProjectCreate(BaseModel):
     event_id: Optional[str] = None
 
 
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    project_type: Optional[str] = None
+
+
 class AddMemberRequest(BaseModel):
     user_identifier: str  # Can be user ID (UUID) or email address
     split_ratio: Optional[float] = 1.0
@@ -180,6 +186,51 @@ async def get_project_details(
         "members": members,
         "settlements": settlements,
     }
+
+
+@router.put("/projects/{project_id}")
+async def update_project(
+    project_id: str,
+    req: ProjectUpdate,
+    payload: dict = Depends(get_current_user_payload),
+):
+    user_id = payload.get("sub")
+    membership = await supabase.get(
+        "dm_shared_project_members",
+        {"project_id": f"eq.{project_id}", "user_id": f"eq.{user_id}"},
+    )
+    if not membership:
+        raise HTTPException(status_code=403, detail="You are not a member of this project.")
+
+    update_data = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields provided to update.")
+
+    updated = await supabase.patch(
+        "dm_shared_projects",
+        {"id": f"eq.{project_id}"},
+        update_data,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Project not found or update failed.")
+    return updated[0]
+
+
+@router.delete("/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+    payload: dict = Depends(get_current_user_payload),
+):
+    user_id = payload.get("sub")
+    project = await supabase.get("dm_shared_projects", {"id": f"eq.{project_id}"})
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    if project[0].get("created_by") != user_id:
+        raise HTTPException(status_code=403, detail="Only the project creator can delete this project.")
+
+    await supabase.delete("dm_shared_project_members", {"project_id": f"eq.{project_id}"})
+    await supabase.delete("dm_shared_projects", {"id": f"eq.{project_id}"})
+    return {"message": "Project deleted successfully."}
 
 
 @router.post("/projects/{project_id}/members")
