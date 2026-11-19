@@ -1,18 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './services/api';
 import Navbar from './components/Navbar';
 import MobileBottomBar from './components/MobileBottomBar';
-import QuickAddModal from './components/QuickAddModal';
-import ProfileModal from './components/ProfileModal';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import SharedProjectsPage from './pages/SharedProjectsPage';
-import LendingPage from './pages/LendingPage';
-import EventsPage from './pages/EventsPage';
-import AIAdvisorPage from './pages/AIAdvisorPage';
-import AdminPage from './pages/AdminPage';
 import { Plus } from 'lucide-react';
+
+// Route Code Splitting: Lazy-load heavy auxiliary tabs & modals on demand
+const SharedProjectsPage = lazy(() => import('./pages/SharedProjectsPage'));
+const LendingPage = lazy(() => import('./pages/LendingPage'));
+const EventsPage = lazy(() => import('./pages/EventsPage'));
+const AIAdvisorPage = lazy(() => import('./pages/AIAdvisorPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const QuickAddModal = lazy(() => import('./components/QuickAddModal'));
+const ProfileModal = lazy(() => import('./components/ProfileModal'));
+
+function TabFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-3 animate-pulse">
+      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#00f5a0]/15 to-emerald-500/15 border border-[#00f5a0]/30 flex items-center justify-center font-bold text-[#00f5a0] text-xl shadow-[0_0_20px_rgba(0,245,160,0.1)]">
+        ₹
+      </div>
+      <p className="text-xs text-slate-500 font-mono tracking-wide">Syncing ledger module...</p>
+    </div>
+  );
+}
 
 function AppContent() {
   const { user, loading, isAdmin } = useAuth();
@@ -77,12 +90,12 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#070a12] flex items-center justify-center">
+      <div className="min-h-screen bg-[#05080e] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-amber-500 flex items-center justify-center font-bold text-white text-2xl animate-pulse">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#00f5a0] to-emerald-600 flex items-center justify-center font-bold text-slate-950 text-2xl animate-pulse shadow-[0_0_30px_rgba(0,245,160,0.25)]">
             ₹
           </div>
-          <p className="text-xs text-slate-400 font-mono">Rooting your wealth...</p>
+          <p className="text-xs text-slate-400 font-mono tracking-wide">Rooting your wealth...</p>
         </div>
       </div>
     );
@@ -98,7 +111,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#05080e] text-slate-100 flex flex-col selection:bg-[#00f5a0] selection:text-slate-950">
       
       {/* Top Navbar */}
       <Navbar
@@ -118,44 +131,46 @@ function AppContent() {
           />
         </div>
 
-        {visitedTabs.has('shared') && (
-          <div className={activeTab === 'shared' ? 'block' : 'hidden'}>
-            <SharedProjectsPage 
-              onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-            />
-          </div>
-        )}
+        <Suspense fallback={<TabFallback />}>
+          {visitedTabs.has('shared') && (
+            <div className={activeTab === 'shared' ? 'block' : 'hidden'}>
+              <SharedProjectsPage 
+                onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+              />
+            </div>
+          )}
 
-        {visitedTabs.has('lending') && (
-          <div className={activeTab === 'lending' ? 'block' : 'hidden'}>
-            <LendingPage 
-              onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-            />
-          </div>
-        )}
+          {visitedTabs.has('lending') && (
+            <div className={activeTab === 'lending' ? 'block' : 'hidden'}>
+              <LendingPage 
+                onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+              />
+            </div>
+          )}
 
-        {visitedTabs.has('events') && (
-          <div className={activeTab === 'events' ? 'block' : 'hidden'}>
-            <EventsPage 
-              onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-            />
-          </div>
-        )}
+          {visitedTabs.has('events') && (
+            <div className={activeTab === 'events' ? 'block' : 'hidden'}>
+              <EventsPage 
+                onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+              />
+            </div>
+          )}
 
-        {visitedTabs.has('ai') && (
-          <div className={activeTab === 'ai' ? 'block' : 'hidden'}>
-            <AIAdvisorPage 
-              onOpenEvents={() => setActiveTab('events')}
-              onOpenLending={() => setActiveTab('lending')}
-            />
-          </div>
-        )}
+          {visitedTabs.has('ai') && (
+            <div className={activeTab === 'ai' ? 'block' : 'hidden'}>
+              <AIAdvisorPage 
+                onOpenEvents={() => setActiveTab('events')}
+                onOpenLending={() => setActiveTab('lending')}
+              />
+            </div>
+          )}
 
-        {isAdmin && visitedTabs.has('admin') && (
-          <div className={activeTab === 'admin' ? 'block' : 'hidden'}>
-            <AdminPage />
-          </div>
-        )}
+          {isAdmin && visitedTabs.has('admin') && (
+            <div className={activeTab === 'admin' ? 'block' : 'hidden'}>
+              <AdminPage />
+            </div>
+          )}
+        </Suspense>
       </main>
 
       {/* Mobile Floating Action Button (hidden when any modal is open) */}
@@ -163,7 +178,7 @@ function AppContent() {
         <button
           type="button"
           onClick={() => setIsQuickAddOpen(true)}
-          className="mobile-fab fixed bottom-20 right-4 z-30 md:hidden w-14 h-14 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/30 flex items-center justify-center transition-transform active:scale-90 border border-emerald-300/40 cursor-pointer pointer-events-auto touch-manipulation"
+          className="mobile-fab fixed bottom-20 right-4 z-30 md:hidden w-14 h-14 rounded-full bg-gradient-to-tr from-[#00f5a0] to-emerald-500 text-slate-950 shadow-xl shadow-[#00f5a0]/25 flex items-center justify-center transition-transform active:scale-90 border border-[#00f5a0]/40 cursor-pointer pointer-events-auto touch-manipulation"
           aria-label="Add Transaction"
         >
           <Plus className="w-6 h-6 stroke-[2.5]" />
@@ -178,20 +193,25 @@ function AppContent() {
         />
       )}
 
-      {/* Quick Add Modal */}
-      <QuickAddModal
-        isOpen={isQuickAddOpen}
-        onClose={() => setIsQuickAddOpen(false)}
-        onExpenseAdded={handleExpenseAdded}
-        events={events}
-        projects={projects}
-      />
+      {/* Suspense Wrappers for Modals */}
+      <Suspense fallback={null}>
+        {isQuickAddOpen && (
+          <QuickAddModal
+            isOpen={isQuickAddOpen}
+            onClose={() => setIsQuickAddOpen(false)}
+            onExpenseAdded={handleExpenseAdded}
+            events={events}
+            projects={projects}
+          />
+        )}
 
-      {/* Profile & Milestones Modal */}
-      <ProfileModal
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-      />
+        {isProfileOpen && (
+          <ProfileModal
+            isOpen={isProfileOpen}
+            onClose={() => setIsProfileOpen(false)}
+          />
+        )}
+      </Suspense>
 
     </div>
   );

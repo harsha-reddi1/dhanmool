@@ -9,7 +9,7 @@ import {
 import { 
   TrendingDown, TrendingUp, AlertTriangle, ShieldCheck, Filter, Eye, EyeOff, 
   Trash2, Edit2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar,
-  ChevronLeft, ChevronRight, Mic, Check, RotateCcw, Sparkles
+  ChevronLeft, ChevronRight, Mic, Check, RotateCcw, Sparkles, Clipboard, Compass, Coffee, ShoppingBasket, ArrowUpRight, ArrowDownRight, Flame
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -142,6 +142,33 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
     }
   };
 
+  const handlePasteSMS = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        setQuickNotice('Clipboard read not supported in this browser. Please paste into the box.');
+        setTimeout(() => setQuickNotice(''), 4000);
+        return;
+      }
+      const clipText = await navigator.clipboard.readText();
+      if (!clipText || !clipText.trim()) {
+        setQuickNotice('Clipboard is empty. Copy bank SMS or UPI receipt text first.');
+        setTimeout(() => setQuickNotice(''), 4000);
+        return;
+      }
+      setQuickInput(clipText.trim());
+      setQuickNotice('Analyzing copied text...');
+      const parsed = await api.parseNL(clipText.trim());
+      if (parsed.amount && parsed.amount > 0) {
+        setQuickNotice(`Detected: ₹${parsed.amount} at ${parsed.merchant || 'Spend'}. Click Log ⚡ to save!`);
+      } else {
+        setQuickNotice('Parsed text. Please confirm amount and tap Log ⚡.');
+      }
+    } catch (err) {
+      setQuickNotice('Please allow clipboard access or paste directly into the box.');
+      setTimeout(() => setQuickNotice(''), 4000);
+    }
+  };
+
   // Load auxiliary data for editing modal
   useEffect(() => {
     Promise.all([api.getEvents(), api.getProjects()])
@@ -211,6 +238,29 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   const timeline = dashboardData?.timeline || [];
   const payments = dashboardData?.payment_breakdown || [];
   const currency = user?.currency_symbol || '₹';
+
+  // Kharcha Radar calculations (Micro-Spends <= ₹100)
+  const microExpenses = expenses.filter(e => parseFloat(e.amount) <= 100);
+  const microTotal = microExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+  const microCount = microExpenses.length;
+  const microPercentOfTotal = expenses.length > 0 ? Math.round((microCount / expenses.length) * 100) : 0;
+  
+  const microChai = microExpenses.filter(e => /chai|tea|coffee/i.test(e.merchant || '') || /chai|tea|coffee/i.test(e.notes || ''));
+  const microChaiTotal = microChai.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  const microAuto = microExpenses.filter(e => /auto|metro|rapido|cab|petrol/i.test(e.merchant || '') || /commute/i.test(e.dm_categories?.name || ''));
+  const microAutoTotal = microAuto.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  const microQuick = microExpenses.filter(e => /blinkit|zepto|snack|bakery|dmart/i.test(e.merchant || '') || /groceries|food/i.test(e.dm_categories?.name || ''));
+  const microQuickTotal = microQuick.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  // Delta Intelligence calculations
+  const isCurrentMonth = selectedMonth === (today.getMonth() + 1) && selectedYear === today.getFullYear();
+  const currentDay = today.getDate();
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+  const expectedPacingPct = Math.round((currentDay / daysInMonth) * 100);
+  const actualBudgetPct = summary.budget_used_percentage || 0;
+  const budgetPacingDelta = actualBudgetPct - expectedPacingPct;
 
   return (
     <div className="space-y-6">
@@ -379,8 +429,18 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
           </button>
         </div>
 
-        {/* 1-Tap Quick Chips */}
+        {/* 1-Tap Quick Chips & SMS Sniffer */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <button
+            type="button"
+            onClick={handlePasteSMS}
+            title="Read bank SMS or payment text from clipboard"
+            className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-[11px] font-semibold whitespace-nowrap active:scale-95 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+          >
+            <Clipboard className="w-3 h-3" />
+            <span>Paste SMS</span>
+          </button>
+
           {[
             { label: '☕ Chai ₹20', text: 'Chai 20 cash' },
             { label: '🍲 Swiggy ₹350', text: 'Swiggy 350 upi' },
@@ -422,14 +482,52 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         )}
       </div>
 
+      {/* "Tell Me What Changed" Delta Intelligence Card (Copilot & Fold inspired) */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0a0f1d] border border-white/8 shadow-xl relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00f5a0]/15 to-emerald-500/15 border border-[#00f5a0]/30 flex items-center justify-center text-[#00f5a0] shrink-0 shadow-[0_0_15px_rgba(0,245,160,0.15)]">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">Tell Me What Changed</h3>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#00f5a0]/15 text-[#00f5a0] border border-[#00f5a0]/30 font-semibold">
+                Delta Intel
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              {isCurrentMonth ? (
+                budgetPacingDelta < -5 ? (
+                  <>🟢 <strong>Healthy Discipline:</strong> Budget consumption ({actualBudgetPct}%) is <span className="text-[#00f5a0] font-bold font-mono">{Math.abs(budgetPacingDelta)}% lower</span> than Day {currentDay} expected pace ({expectedPacingPct}%).</>
+                ) : budgetPacingDelta > 10 ? (
+                  <>🔴 <strong>Pacing Warning:</strong> Budget consumption ({actualBudgetPct}%) is <span className="text-rose-400 font-bold font-mono">{budgetPacingDelta}% ahead</span> of Day {currentDay} baseline ({expectedPacingPct}%). Cool down discretionary spends.</>
+                ) : (
+                  <>🟢 <strong>On Track:</strong> Spending pace ({actualBudgetPct}%) is balanced with Day {currentDay} target ({expectedPacingPct}% of monthly budget).</>
+                )
+              ) : (
+                <>Historical Ledger: Reviewing completed cash outflows for {MONTH_NAMES[selectedMonth - 1]} {selectedYear}.</>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenQuickAdd}
+          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 border border-slate-700/60 transition-all cursor-pointer active:scale-95 shrink-0 self-end sm:self-center"
+        >
+          Add Spend →
+        </button>
+      </div>
+
       {/* KPI Cards (2x2 on Mobile, 4 columns on Desktop) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         
         {/* Total Spend Card */}
-        <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 shadow-lg relative overflow-hidden">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-[#00f5a0]/30 shadow-[0_0_20px_rgba(0,245,160,0.06)] relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
             <span className="truncate">Spent in {MONTH_NAMES[selectedMonth - 1].slice(0, 3)}</span>
-            <span className="p-1 sm:p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+            <span className="p-1 sm:p-1.5 rounded-lg bg-[#00f5a0]/15 text-[#00f5a0] shrink-0">
               <TrendingDown className="w-3.5 h-3.5" />
             </span>
           </div>
@@ -438,19 +536,19 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
           </div>
           <div className="mt-1.5 text-[10px] sm:text-[11px] text-slate-400 flex items-center justify-between">
             <span className="truncate">Budget: {currency}{(summary.monthly_budget || 0).toLocaleString('en-IN')}</span>
-            <span className={`font-semibold shrink-0 ${summary.budget_used_percentage > 85 ? 'text-rose-400' : 'text-emerald-400'}`}>
+            <span className={`font-semibold shrink-0 ${summary.budget_used_percentage > 85 ? 'text-rose-400' : 'text-[#00f5a0]'}`}>
               {summary.budget_used_percentage || 0}%
             </span>
           </div>
           {/* Progress bar */}
-          <div className="w-full bg-slate-800 h-1 sm:h-1.5 rounded-full mt-1.5 overflow-hidden">
+          <div className="w-full bg-slate-800/80 h-1 sm:h-1.5 rounded-full mt-1.5 overflow-hidden">
             <div 
               className={`h-full rounded-full transition-all duration-500 ${
                 summary.budget_used_percentage > 90 
                   ? 'bg-rose-500' 
                   : summary.budget_used_percentage > 75 
                   ? 'bg-amber-400' 
-                  : 'bg-emerald-500'
+                  : 'bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]'
               }`}
               style={{ width: `${Math.min(100, summary.budget_used_percentage || 0)}%` }}
             />
@@ -458,10 +556,10 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         </div>
 
         {/* Daily Burn Rate Card */}
-        <div className="p-3.5 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-lg">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-white/8 shadow-lg">
           <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
             <span className="truncate">Daily Burn</span>
-            <span className="p-1 sm:p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
+            <span className="p-1 sm:p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400 shrink-0">
               <TrendingUp className="w-3.5 h-3.5" />
             </span>
           </div>
@@ -477,11 +575,11 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         {/* Sinking Fund Pool Card */}
         <div 
           onClick={onOpenEvents}
-          className="p-3.5 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-purple-500/40 shadow-lg cursor-pointer transition-colors active:scale-95"
+          className="p-3.5 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-purple-500/30 hover:border-purple-500/50 shadow-lg cursor-pointer transition-colors active:scale-95"
         >
           <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
             <span className="truncate">Sinking Funds</span>
-            <span className="p-1 sm:p-1.5 rounded-lg bg-purple-500/10 text-purple-400 shrink-0">
+            <span className="p-1 sm:p-1.5 rounded-lg bg-purple-500/15 text-purple-400 shrink-0">
               <Plane className="w-3.5 h-3.5" />
             </span>
           </div>
@@ -497,11 +595,11 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         {/* Informal Udhar Net Position Card */}
         <div 
           onClick={onOpenLending}
-          className="p-3.5 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 shadow-lg cursor-pointer transition-colors active:scale-95"
+          className="p-3.5 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-amber-500/30 hover:border-amber-500/50 shadow-lg cursor-pointer transition-colors active:scale-95"
         >
           <div className="flex items-center justify-between text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1.5">
             <span className="truncate">Net Udhar</span>
-            <span className="p-1 sm:p-1.5 rounded-lg bg-amber-500/10 text-amber-400 shrink-0">
+            <span className="p-1 sm:p-1.5 rounded-lg bg-amber-500/15 text-amber-400 shrink-0">
               <ShieldCheck className="w-3.5 h-3.5" />
             </span>
           </div>
@@ -509,7 +607,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
             {currency}{((summary.total_lent_unsettled || 0) - (summary.total_borrowed_unsettled || 0)).toLocaleString('en-IN')}
           </div>
           <div className="mt-1.5 text-[10px] sm:text-[11px] text-slate-400 flex items-center justify-between">
-            <span className="text-emerald-400 font-mono truncate">+{currency}{(summary.total_lent_unsettled || 0).toLocaleString('en-IN')}</span>
+            <span className="text-[#00f5a0] font-mono truncate">+{currency}{(summary.total_lent_unsettled || 0).toLocaleString('en-IN')}</span>
             <span className="underline text-amber-300 font-semibold shrink-0">Udhar →</span>
           </div>
         </div>
@@ -542,7 +640,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Daily Timeline Area Chart */}
-        <div className={`lg:col-span-2 p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl ${
+        <div className={`lg:col-span-2 p-4 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-white/8 shadow-xl ${
           chartTab === 'timeline' ? 'block' : 'hidden lg:block'
         }`}>
           <div className="flex items-center justify-between mb-4">
@@ -560,8 +658,8 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
               <AreaChart data={timeline} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.0}/>
+                    <stop offset="5%" stopColor="#00F5A0" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#00F5A0" stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
                 <XAxis 
@@ -577,15 +675,15 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
                   tickFormatter={(val) => `₹${val}`}
                 />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
+                  contentStyle={{ backgroundColor: '#0A0F1D', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
                   formatter={(val) => [`${currency}${val}`, 'Spent']}
                   labelFormatter={(day) => `Day ${day} (${MONTH_NAMES[selectedMonth - 1]})`}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="amount" 
-                  stroke="#10B981" 
-                  strokeWidth={2}
+                  stroke="#00F5A0" 
+                  strokeWidth={2.5}
                   fillOpacity={1} 
                   fill="url(#spendGradient)" 
                 />
@@ -595,7 +693,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
         </div>
 
         {/* Category Breakdown Donut Chart */}
-        <div className={`p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between ${
+        <div className={`p-4 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-white/8 shadow-xl flex flex-col justify-between ${
           chartTab === 'categories' ? 'flex' : 'hidden lg:flex'
         }`}>
           <div>
@@ -657,7 +755,7 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Recent Transactions List */}
-        <div className="lg:col-span-2 p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+        <div className="lg:col-span-2 p-5 rounded-2xl bg-[#0a0f1d] border border-white/8 shadow-xl">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold text-white">Recent Transactions</h2>
@@ -843,30 +941,95 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
 
         </div>
 
-        {/* Payment Modes & Quick UPI Insights */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl flex flex-col justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-white">Payment Rail Distribution</h2>
-            <p className="text-[11px] text-slate-400">UPI vs Cards vs NetBanking</p>
+        {/* Right Column: Kharcha Radar & Payment Rail Distribution */}
+        <div className="space-y-6">
+          
+          {/* Kharcha Radar (Micro-Spends <= ₹100) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-emerald-500/30 shadow-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-[#00f5a0]/15 text-[#00f5a0] border border-[#00f5a0]/30 shrink-0">
+                  <Compass className="w-4 h-4 animate-spin-slow" />
+                </span>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Kharcha Radar</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-[#00f5a0] border border-emerald-500/30 font-mono">
+                      ≤ ₹100
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Impulse & Tapri Tracker</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold font-mono text-[#00f5a0]">{currency}{microTotal.toLocaleString('en-IN')}</div>
+                <div className="text-[10px] text-slate-400 font-mono">{microCount} micro-spends</div>
+              </div>
+            </div>
+
+            {/* Micro breakdown pills */}
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800">
+                <div className="text-slate-400 text-[10px] flex items-center justify-center gap-1">
+                  <Coffee className="w-3 h-3 text-amber-400" />
+                  <span>Chai</span>
+                </div>
+                <div className="text-xs font-bold font-mono text-white mt-0.5">{currency}{microChaiTotal}</div>
+                <div className="text-[9px] text-slate-500">{microChai.length} times</div>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800">
+                <div className="text-slate-400 text-[10px] flex items-center justify-center gap-1">
+                  <Car className="w-3 h-3 text-blue-400" />
+                  <span>Auto</span>
+                </div>
+                <div className="text-xs font-bold font-mono text-white mt-0.5">{currency}{microAutoTotal}</div>
+                <div className="text-[9px] text-slate-500">{microAuto.length} times</div>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-950/80 border border-slate-800">
+                <div className="text-slate-400 text-[10px] flex items-center justify-center gap-1">
+                  <ShoppingBasket className="w-3 h-3 text-purple-400" />
+                  <span>Snacks</span>
+                </div>
+                <div className="text-xs font-bold font-mono text-white mt-0.5">{currency}{microQuickTotal}</div>
+                <div className="text-[9px] text-slate-500">{microQuick.length} times</div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-slate-300 flex items-center justify-between">
+              <span>
+                <strong>{microPercentOfTotal}%</strong> of transactions are under ₹100.
+              </span>
+              <span className="text-[10px] text-[#00f5a0] font-semibold">
+                {microCount > 12 ? 'Active 🔥' : 'Balanced 🌿'}
+              </span>
+            </div>
           </div>
 
-          <div className="h-48 w-full my-3">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={payments} layout="vertical" margin={{ top: 5, right: 15, left: 10, bottom: 5 }}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="mode" type="category" stroke="#94A3B8" fontSize={11} width={80} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '12px', fontSize: '11px' }}
-                  formatter={(val) => [`${currency}${val.toLocaleString('en-IN')}`, 'Amount']}
-                />
-                <Bar dataKey="amount" fill="#3B82F6" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {/* Payment Modes & Quick UPI Insights */}
+          <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-white/8 shadow-xl flex flex-col justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-white">Payment Rail Distribution</h2>
+              <p className="text-[11px] text-slate-400">UPI vs Cards vs NetBanking</p>
+            </div>
 
-          <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
-            <span className="text-emerald-400 font-semibold block mb-0.5">💡 Indian FinTip:</span>
-            92% of everyday micro-outflows happen on UPI. Set daily UPI limits on your banking app to cap impulsive ordering!
+            <div className="h-44 w-full my-3">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={payments} layout="vertical" margin={{ top: 5, right: 15, left: 10, bottom: 5 }}>
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="mode" type="category" stroke="#94A3B8" fontSize={11} width={80} tickLine={false} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#0F172A', borderColor: '#334155', borderRadius: '12px', fontSize: '11px' }}
+                    formatter={(val) => [`${currency}${val.toLocaleString('en-IN')}`, 'Amount']}
+                  />
+                  <Bar dataKey="amount" fill="#00f5a0" radius={[0, 6, 6, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
+              <span className="text-[#00f5a0] font-semibold block mb-0.5">💡 Indian FinTip:</span>
+              92% of everyday micro-outflows happen on UPI. Set daily UPI limits on your banking app to cap impulsive ordering!
+            </div>
           </div>
 
         </div>

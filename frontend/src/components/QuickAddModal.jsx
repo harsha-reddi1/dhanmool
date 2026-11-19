@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useModalLock } from '../utils/modalManager';
-import { X, Mic, Check, HandCoins, Zap, RotateCcw, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { X, Mic, Check, HandCoins, Zap, RotateCcw, ChevronDown, ChevronUp, Sparkles, Clipboard } from 'lucide-react';
 
 const QUICK_CHIPS = [
   { label: '☕ Chai ₹20', text: 'Chai 20 cash' },
@@ -203,6 +203,30 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
     }
   };
 
+  const handlePasteSMS = async () => {
+    try {
+      if (!navigator.clipboard?.readText) {
+        setParseNotice('Clipboard read not supported in this browser.');
+        return;
+      }
+      const clipText = await navigator.clipboard.readText();
+      if (!clipText || !clipText.trim()) {
+        setParseNotice('Clipboard is empty. Copy bank SMS or UPI receipt text first.');
+        return;
+      }
+      setNlInput(clipText.trim());
+      setParseNotice('Analyzing copied text...');
+      const parsed = await api.parseNL(clipText.trim());
+      if (parsed.amount && parsed.amount > 0) {
+        setParseNotice(`Detected: ₹${parsed.amount} at ${parsed.merchant || 'Spend'}. Tap Quick Log ⚡ to save.`);
+      } else {
+        setParseNotice('Parsed text. Enter or confirm amount.');
+      }
+    } catch (err) {
+      setParseNotice('Please allow clipboard access or paste directly into the box.');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) {
@@ -364,6 +388,16 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
                 Instant Presets (1-Tap):
               </p>
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                <button
+                  type="button"
+                  onClick={handlePasteSMS}
+                  title="Read bank SMS or payment text from clipboard"
+                  className="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 text-[11px] font-semibold whitespace-nowrap active:scale-95 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  <Clipboard className="w-3 h-3" />
+                  <span>Paste SMS</span>
+                </button>
+
                 {QUICK_CHIPS.map((chip) => (
                   <button
                     key={chip.label}

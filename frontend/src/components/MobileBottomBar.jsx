@@ -25,7 +25,7 @@ export default function MobileBottomBar({ activeTab, setActiveTab }) {
   }
 
   return (
-    <nav className="mobile-bottom-bar fixed bottom-0 inset-x-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 safe-bottom md:hidden shadow-2xl pointer-events-auto">
+    <nav className="mobile-bottom-bar fixed bottom-0 inset-x-0 z-40 bg-[#05080e]/95 backdrop-blur-xl border-t border-white/8 safe-bottom md:hidden shadow-2xl pointer-events-auto">
       <div className="flex items-center justify-around w-full px-1 py-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -43,16 +43,16 @@ export default function MobileBottomBar({ activeTab, setActiveTab }) {
                 isActive 
                   ? item.isAdminTab 
                     ? 'text-amber-400 font-bold' 
-                    : 'text-emerald-400 font-bold' 
+                    : 'text-[#00f5a0] font-bold' 
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+              <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(0,245,160,0.4)]' : ''}`} />
               <span className="text-[10px] mt-1 tracking-tight leading-none truncate max-w-full">
                 {item.shortLabel}
               </span>
               {isActive && (
-                <span className={`w-1 h-1 rounded-full mt-1 ${item.isAdminTab ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                <span className={`w-1 h-1 rounded-full mt-1 ${item.isAdminTab ? 'bg-amber-400' : 'bg-[#00f5a0] shadow-[0_0_6px_#00f5a0]'}`} />
               )}
             </button>
           );
