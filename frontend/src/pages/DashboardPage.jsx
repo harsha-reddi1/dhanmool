@@ -9,7 +9,8 @@ import {
 import { 
   TrendingDown, TrendingUp, AlertTriangle, ShieldCheck, Filter, Eye, EyeOff, 
   Trash2, Edit2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar,
-  ChevronLeft, ChevronRight, Mic, Check, RotateCcw, Sparkles, Clipboard, Compass, Coffee, ShoppingBasket, ArrowUpRight, ArrowDownRight, Flame
+  ChevronLeft, ChevronRight, Mic, Check, RotateCcw, Sparkles, Clipboard, Compass, Coffee, ShoppingBasket, ArrowUpRight, ArrowDownRight, Flame,
+  CreditCard, Target, Activity, Tv, Music, Wifi, HeartPulse, CheckCircle2, ShieldAlert
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -261,6 +262,102 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   const expectedPacingPct = Math.round((currentDay / daysInMonth) * 100);
   const actualBudgetPct = summary.budget_used_percentage || 0;
   const budgetPacingDelta = actualBudgetPct - expectedPacingPct;
+
+  // Sinking Fund Speedometer / Auto-Pacer calculations
+  const sinkingFundEvents = (events || []).filter(e => e.is_sinking_fund !== false);
+  const primaryEvent = sinkingFundEvents[0] || null;
+
+  // Financial Discipline Streak calculations
+  const dailyBudgetLimit = ((summary.monthly_budget || 30000) / daysInMonth);
+  const daySpendMap = {};
+  expenses.forEach(e => {
+    if (!e.spent_at) return;
+    const day = parseInt(e.spent_at.split('-')[2], 10);
+    if (!isNaN(day)) {
+      daySpendMap[day] = (daySpendMap[day] || 0) + (parseFloat(e.amount) || 0);
+    }
+  });
+
+  let disciplineStreak = 0;
+  if (isCurrentMonth) {
+    for (let d = currentDay; d >= 1; d--) {
+      const spend = daySpendMap[d] || 0;
+      if (spend <= dailyBudgetLimit) {
+        disciplineStreak++;
+      } else {
+        break;
+      }
+    }
+  } else {
+    disciplineStreak = 5;
+  }
+
+  // 7-day mini trail for recent days
+  const recentDaysTrail = [];
+  const startDay = Math.max(1, currentDay - 6);
+  for (let d = startDay; d <= currentDay; d++) {
+    const spend = daySpendMap[d] || 0;
+    recentDaysTrail.push({
+      day: d,
+      spend,
+      isSafe: spend <= dailyBudgetLimit,
+      isZero: spend === 0,
+    });
+  }
+
+  // UPI Autopay & Recurring Mandates Hub calculations
+  const defaultMandates = [
+    { id: 'm1', name: 'Netflix 4K', category: 'Streaming', amount: 649, dueDay: 5, iconType: 'tv', type: 'UPI Autopay' },
+    { id: 'm2', name: 'Spotify Premium', category: 'Music', amount: 119, dueDay: 12, iconType: 'music', type: 'UPI Autopay' },
+    { id: 'm3', name: 'JioFiber / Airtel', category: 'Broadband', amount: 999, dueDay: 18, iconType: 'wifi', type: 'e-Mandate' },
+    { id: 'm4', name: 'Nifty 50 Index SIP', category: 'Investment', amount: 5000, dueDay: 10, iconType: 'activity', type: 'NACH Auto-Debit' },
+  ];
+
+  const recurringMandates = defaultMandates.map(m => {
+    const matchedExp = expenses.find(e => 
+      new RegExp(m.name.split(' ')[0], 'i').test(e.merchant || '')
+    );
+    const amt = matchedExp ? parseFloat(matchedExp.amount) : m.amount;
+    const diff = m.dueDay - currentDay;
+    let dueStatus = '';
+    if (diff === 0) dueStatus = 'Due Today ⚡';
+    else if (diff > 0) dueStatus = `Due in ${diff}d`;
+    else dueStatus = `In ${30 + diff}d`;
+
+    return {
+      ...m,
+      amount: amt,
+      dueStatus,
+      isNear: diff >= 0 && diff <= 5,
+    };
+  });
+
+  const totalAutopayCommitment = recurringMandates.reduce((sum, m) => sum + m.amount, 0);
+
+  // 50/30/20 Cashflow Health & Runway Gauge calculations
+  let needsSpend = 0;
+  let wantsSpend = 0;
+  expenses.forEach(e => {
+    const name = ((e.dm_categories?.name || '') + ' ' + (e.merchant || '')).toLowerCase();
+    const amt = parseFloat(e.amount) || 0;
+    if (/grocer|rent|bill|utilit|commute|medic|health|petrol|milk|wifi|auto/i.test(name)) {
+      needsSpend += amt;
+    } else {
+      wantsSpend += amt;
+    }
+  });
+
+  const validTotalSpend = (summary.total_spent || 1);
+  const needsPct = Math.min(100, Math.round((needsSpend / validTotalSpend) * 100)) || 55;
+  const wantsPct = Math.min(100, Math.round((wantsSpend / validTotalSpend) * 100)) || 30;
+  const savingsBuffer = Math.max(0, (summary.monthly_budget || 0) - (summary.total_spent || 0));
+  const savingsPct = summary.monthly_budget > 0 ? Math.round((savingsBuffer / summary.monthly_budget) * 100) : 15;
+
+  let healthScore = 95;
+  if (budgetPacingDelta > 10) healthScore -= 15;
+  if (wantsPct > 45) healthScore -= 10;
+  if (summary.budget_used_percentage > 85) healthScore -= 20;
+  healthScore = Math.max(45, Math.min(98, healthScore));
 
   return (
     <div className="space-y-6">
@@ -609,6 +706,180 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
           <div className="mt-1.5 text-[10px] sm:text-[11px] text-slate-400 flex items-center justify-between">
             <span className="text-[#00f5a0] font-mono truncate">+{currency}{(summary.total_lent_unsettled || 0).toLocaleString('en-IN')}</span>
             <span className="underline text-amber-300 font-semibold shrink-0">Udhar →</span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Dynamic Pacing & Financial Discipline Innovation Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        {/* Festival & Vacation Sinking Fund Auto-Pacer */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-purple-500/25 shadow-xl relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                  <Target className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Festival & Sinking Fund Pacer</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 font-mono">
+                      Auto-Pacer
+                    </span>
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400">Protects monthly living cashflow from festival & vacation spikes</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenEvents}
+                className="text-xs text-purple-400 hover:text-purple-300 font-semibold cursor-pointer shrink-0"
+              >
+                All Funds →
+              </button>
+            </div>
+
+            {primaryEvent ? (
+              <div className="space-y-3 mt-1">
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-white block">{primaryEvent.title}</span>
+                    <span className="text-[10px] text-slate-400 capitalize">{primaryEvent.event_type || 'Event'} Sinking Pool</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-bold font-mono text-purple-300">
+                      {currency}{(primaryEvent.total_spent || 0).toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono block">
+                      of {currency}{(primaryEvent.target_budget || 0).toLocaleString('en-IN')} target
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      primaryEvent.is_overbudget ? 'bg-rose-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'
+                    }`}
+                    style={{ width: `${Math.min(100, primaryEvent.progress_percentage || 0)}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                  <span className="flex items-center gap-1 text-slate-300">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#00f5a0]" />
+                    <span>Remaining Buffer: <strong className="font-mono text-white">{currency}{(primaryEvent.remaining_budget || 0).toLocaleString('en-IN')}</strong></span>
+                  </span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                    primaryEvent.is_overbudget 
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' 
+                      : (primaryEvent.progress_percentage || 0) > 75 
+                      ? 'bg-amber-500/20 text-amber-300' 
+                      : 'bg-emerald-500/20 text-[#00f5a0]'
+                  }`}>
+                    {primaryEvent.is_overbudget ? 'Over Target' : (primaryEvent.progress_percentage || 0) > 75 ? 'Pacing Fast ⚡' : 'Healthy Pacing 🎯'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-slate-950/80 border border-purple-500/20 mt-1 space-y-2.5">
+                <p className="text-xs text-slate-300">
+                  Got an upcoming Diwali celebration, Goa trip, or wedding? Set up an isolated sinking fund to track event spends without messing up your routine living averages.
+                </p>
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <button
+                    type="button"
+                    onClick={onOpenEvents}
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium cursor-pointer transition-all active:scale-95"
+                  >
+                    🏖️ Goa Trip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenEvents}
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium cursor-pointer transition-all active:scale-95"
+                  >
+                    🪔 Diwali Shopping
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenEvents}
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 font-medium cursor-pointer transition-all active:scale-95"
+                  >
+                    📱 Tech Upgrade
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Financial Discipline & Safe Burn Streak */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-emerald-500/25 shadow-xl relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-[#00f5a0]/15 text-[#00f5a0] border border-[#00f5a0]/30">
+                  <Flame className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Safe Burn & Discipline Streak</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-[#00f5a0] font-mono">
+                      {disciplineStreak} Days
+                    </span>
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400">Tracking daily spend under the ₹{Math.round(dailyBudgetLimit).toLocaleString('en-IN')}/day target</p>
+                </div>
+              </div>
+
+              <span className="text-xs font-bold text-[#00f5a0] flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 fill-[#00f5a0]" />
+                <span>{disciplineStreak > 0 ? `${disciplineStreak}-Day Streak` : 'Streak Ready'}</span>
+              </span>
+            </div>
+
+            {/* 7-Day Dot Trail */}
+            <div className="p-3 rounded-xl bg-slate-950/80 border border-white/5 space-y-2">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Recent 7-Day Compliance</span>
+                <span className="font-mono text-white text-[10px]">Target: ≤ ₹{Math.round(dailyBudgetLimit)}/day</span>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5 pt-1">
+                {recentDaysTrail.map((dItem) => (
+                  <div key={dItem.day} className="flex flex-col items-center gap-1">
+                    <div 
+                      className={`w-full py-1.5 rounded-lg flex items-center justify-center text-[10px] font-mono font-bold transition-all ${
+                        dItem.isZero
+                          ? 'bg-[#00f5a0]/25 text-[#00f5a0] border border-[#00f5a0]/40 shadow-[0_0_8px_rgba(0,245,160,0.2)]'
+                          : dItem.isSafe
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                      }`}
+                      title={`Day ${dItem.day}: ₹${dItem.spend}`}
+                    >
+                      {dItem.isZero ? '₹0' : dItem.isSafe ? '✓' : '!'}
+                    </div>
+                    <span className="text-[9px] text-slate-500 font-mono">D{dItem.day}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-300">
+              <span className="text-slate-400">
+                {disciplineStreak >= 3 ? (
+                  <>🔥 <strong>Solid control:</strong> You kept spending under daily burn for {disciplineStreak} consecutive days.</>
+                ) : (
+                  <>🌿 Maintain daily spend under ₹{Math.round(dailyBudgetLimit)} to build your financial discipline streak.</>
+                )}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1029,6 +1300,137 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
             <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
               <span className="text-[#00f5a0] font-semibold block mb-0.5">💡 Indian FinTip:</span>
               92% of everyday micro-outflows happen on UPI. Set daily UPI limits on your banking app to cap impulsive ordering!
+            </div>
+          </div>
+
+          {/* UPI Autopay & Recurring Mandates Hub */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-indigo-500/30 shadow-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 shrink-0">
+                  <CreditCard className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>UPI Autopay & Mandates</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">
+                      RBI e-Mandate
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Recurring debits & SIP commitments</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold font-mono text-indigo-300">
+                  {currency}{totalAutopayCommitment.toLocaleString('en-IN')}
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono">/month committed</div>
+              </div>
+            </div>
+
+            {/* List of mandates */}
+            <div className="space-y-2 pt-1">
+              {recurringMandates.map((m) => (
+                <div 
+                  key={m.id}
+                  className="p-2.5 rounded-xl bg-slate-950 border border-white/5 flex items-center justify-between text-xs hover:border-slate-700 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 shrink-0">
+                      {m.iconType === 'tv' && <Tv className="w-3.5 h-3.5 text-rose-400" />}
+                      {m.iconType === 'music' && <Music className="w-3.5 h-3.5 text-emerald-400" />}
+                      {m.iconType === 'wifi' && <Wifi className="w-3.5 h-3.5 text-blue-400" />}
+                      {m.iconType === 'activity' && <Activity className="w-3.5 h-3.5 text-amber-400" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-white truncate max-w-[120px]">{m.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono">{m.type}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="font-mono font-bold text-white">{currency}{m.amount.toLocaleString('en-IN')}</div>
+                    <span className={`text-[10px] font-medium ${m.isNear ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
+                      {m.dueStatus}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-slate-300 flex items-center justify-between">
+              <span>Auto-debits occur via linked UPI VPAs.</span>
+              <span className="text-[10px] text-indigo-300 font-semibold font-mono">
+                {recurringMandates.length} Active
+              </span>
+            </div>
+          </div>
+
+          {/* Indian 50/30/20 Cashflow Health & Runway Gauge */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0a0f1d] border border-white/8 shadow-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-[#00f5a0]/15 text-[#00f5a0] border border-[#00f5a0]/30 shrink-0">
+                  <HeartPulse className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>50/30/20 Cashflow Gauge</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#00f5a0]/20 text-[#00f5a0] font-mono">
+                      Health
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400">Needs vs Wants vs Monthly Runway</p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <div className="text-sm font-bold font-mono text-[#00f5a0]">{healthScore}/100</div>
+                <div className="text-[10px] text-slate-400">FinHealth Score</div>
+              </div>
+            </div>
+
+            {/* Visual 3-part progress ratio */}
+            <div className="space-y-2 pt-1">
+              {/* Needs bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-300">Needs (Rent, Groceries, Commute)</span>
+                  <span className="font-mono text-white font-semibold">{needsPct}% <span className="text-slate-500">(Target 50%)</span></span>
+                </div>
+                <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${needsPct}%` }} />
+                </div>
+              </div>
+
+              {/* Wants bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-300">Wants (Dining, Shopping, Fun)</span>
+                  <span className="font-mono text-white font-semibold">{wantsPct}% <span className="text-slate-500">(Target 30%)</span></span>
+                </div>
+                <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                  <div className="h-full bg-purple-500 rounded-full" style={{ width: `${wantsPct}%` }} />
+                </div>
+              </div>
+
+              {/* Savings & Buffer bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-slate-300">Savings & Runway Buffer</span>
+                  <span className="font-mono text-[#00f5a0] font-semibold">{savingsPct}% <span className="text-slate-500">(Target 20%)</span></span>
+                </div>
+                <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#00f5a0] rounded-full shadow-[0_0_8px_#00f5a0]" style={{ width: `${savingsPct}%` }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400">
+              <span className="text-slate-300 font-semibold block mb-0.5">Discipline Verdict:</span>
+              {healthScore >= 80 
+                ? 'Your fixed overheads are well disciplined. Surplus buffer is ready for SIP compounding.' 
+                : 'Discretionary outflows are trending slightly high. Cap Swiggy & Tapri micro-spends to boost runway.'}
             </div>
           </div>
 
