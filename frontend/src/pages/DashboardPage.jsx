@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import EditExpenseModal from '../components/EditExpenseModal';
 import { 
   AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar 
@@ -8,7 +9,7 @@ import {
 import { 
   TrendingDown, TrendingUp, AlertTriangle, ShieldCheck, Filter, Eye, EyeOff, 
   Trash2, Edit2, ShoppingBag, UtensilsCrossed, Car, Plane, Zap, RefreshCw, Calendar,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Mic, Check, RotateCcw, Sparkles
 } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -48,6 +49,98 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
   const [editingExpense, setEditingExpense] = useState(null);
   const [events, setEvents] = useState([]);
   const [projects, setProjects] = useState([]);
+
+  // 1-Tap Quick Spend & Voice States
+  const [quickInput, setQuickInput] = useState('');
+  const [isQuickLogging, setIsQuickLogging] = useState(false);
+  const [quickNotice, setQuickNotice] = useState('');
+  const [lastQuickSaved, setLastQuickSaved] = useState(null);
+  const [isUndoing, setIsUndoing] = useState(false);
+
+  const { isListening: isDashListening, toggleListening: toggleDashListening } = useSpeechRecognition({
+    lang: 'en-IN',
+    onResult: (transcript, isFinal) => {
+      setQuickInput(transcript);
+      if (isFinal) {
+        handleDashQuickLog(transcript);
+      }
+    },
+    onError: (err) => {
+      setQuickNotice(err);
+      setTimeout(() => setQuickNotice(''), 4000);
+    },
+  });
+
+  const handleDashQuickLog = async (overrideText) => {
+    const textToLog = (overrideText || quickInput || '').trim();
+    if (!textToLog) return;
+    setIsQuickLogging(true);
+    setQuickNotice('Logging...');
+    try {
+      const parsed = await api.parseNL(textToLog);
+      if (!parsed.amount || parsed.amount <= 0) {
+        onOpenQuickAdd();
+        return;
+      }
+
+      let savedRecord = null;
+      if (parsed.is_lending) {
+        savedRecord = await api.createLending({
+          contact_name: parsed.contact_name || parsed.merchant || 'Friend',
+          contact_type: 'friend',
+          direction: parsed.lending_direction || 'lent',
+          principal_amount: parseFloat(parsed.amount),
+          lent_date: new Date().toISOString().split('T')[0],
+          notes: parsed.notes,
+        });
+      } else {
+        savedRecord = await api.createExpense({
+          amount: parseFloat(parsed.amount),
+          category_id: parsed.category_id || null,
+          merchant: parsed.merchant || 'General Spend',
+          payment_mode: parsed.payment_mode || 'UPI',
+          spent_at: new Date().toISOString().split('T')[0],
+          notes: parsed.notes,
+        });
+      }
+
+      loadData(true);
+      setLastQuickSaved({
+        id: savedRecord.id,
+        type: parsed.is_lending ? 'lending' : 'expense',
+        amount: parsed.amount,
+        merchant: parsed.is_lending ? `Lent to ${parsed.contact_name || 'Friend'}` : (parsed.merchant || 'General Spend'),
+        payment_mode: parsed.payment_mode || 'UPI',
+      });
+      setQuickInput('');
+      setQuickNotice(`⚡ Logged ₹${parsed.amount} to ${parsed.merchant || 'Spend'} (${parsed.payment_mode || 'UPI'})!`);
+      setTimeout(() => setQuickNotice(''), 6000);
+    } catch (err) {
+      console.error(err);
+      setQuickNotice(err.message || 'Could not log. Tap + to add manually.');
+    } finally {
+      setIsQuickLogging(false);
+    }
+  };
+
+  const handleDashUndo = async () => {
+    if (!lastQuickSaved) return;
+    setIsUndoing(true);
+    try {
+      if (lastQuickSaved.type === 'lending') {
+        await api.deleteLending(lastQuickSaved.id);
+      } else {
+        await api.deleteExpense(lastQuickSaved.id);
+      }
+      setLastQuickSaved(null);
+      setQuickNotice('Transaction undone.');
+      loadData(true);
+    } catch (err) {
+      alert('Failed to undo transaction');
+    } finally {
+      setIsUndoing(false);
+    }
+  };
 
   // Load auxiliary data for editing modal
   useEffect(() => {
@@ -222,6 +315,111 @@ export default function DashboardPage({ onOpenQuickAdd, onOpenEvents, onOpenLend
           </button>
 
         </div>
+      </div>
+
+      {/* 1-Tap Quick Spend & Voice Bar */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 border border-emerald-500/25 shadow-lg shadow-emerald-500/5 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>1-Tap Quick Spend</span>
+          </div>
+          <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
+            Speak e.g. "Swiggy 450", "Auto 80 cash", "Chai 20"
+          </span>
+        </div>
+
+        {/* Listening banner */}
+        {isDashListening && (
+          <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between animate-pulse">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+              <span className="text-xs font-bold text-rose-300">Listening to voice...</span>
+            </div>
+            <span className="text-[11px] text-slate-400">Speak now (auto-saves on speech end)</span>
+          </div>
+        )}
+
+        {/* Input Bar */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder={isDashListening ? "Listening... speak now" : 'Tap mic or type: "Swiggy 450", "Auto 80 cash", "Chai 20"'}
+              value={quickInput}
+              onChange={(e) => setQuickInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleDashQuickLog())}
+              className={`w-full bg-slate-950 border rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all ${
+                isDashListening ? 'border-rose-500/60 ring-2 ring-rose-500/30' : 'border-slate-800 focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/50'
+              }`}
+            />
+            <button
+              type="button"
+              onClick={toggleDashListening}
+              title={isDashListening ? "Stop listening" : "Speak transaction details"}
+              className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all cursor-pointer ${
+                isDashListening 
+                  ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40 animate-pulse' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Mic className="w-4 h-4" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleDashQuickLog()}
+            disabled={isQuickLogging || !quickInput.trim()}
+            className="px-3.5 sm:px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer shrink-0 flex items-center gap-1.5"
+          >
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            <span className="hidden sm:inline">{isQuickLogging ? 'Logging...' : 'Log ⚡'}</span>
+            <span className="sm:hidden">{isQuickLogging ? '...' : 'Log ⚡'}</span>
+          </button>
+        </div>
+
+        {/* 1-Tap Quick Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          {[
+            { label: '☕ Chai ₹20', text: 'Chai 20 cash' },
+            { label: '🍲 Swiggy ₹350', text: 'Swiggy 350 upi' },
+            { label: '🛺 Auto ₹80', text: 'Auto 80 cash' },
+            { label: '🥦 Blinkit ₹450', text: 'Blinkit 450 upi' },
+            { label: '⛽ Petrol ₹500', text: 'Petrol 500 upi' },
+          ].map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => handleDashQuickLog(chip.text)}
+              disabled={isQuickLogging}
+              className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-emerald-500/10 hover:border-emerald-500/40 border border-slate-800 text-[11px] text-slate-300 font-medium whitespace-nowrap active:scale-95 transition-all cursor-pointer"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Status / Undo Notice */}
+        {quickNotice && (
+          <div className="flex items-center justify-between text-[11px] text-emerald-400 pt-0.5 animate-in fade-in">
+            <span className="flex items-center gap-1.5 truncate">
+              <Check className="w-3.5 h-3.5 shrink-0" />
+              <span>{quickNotice}</span>
+            </span>
+            {lastQuickSaved && (
+              <button
+                type="button"
+                onClick={handleDashUndo}
+                disabled={isUndoing}
+                className="px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-semibold flex items-center gap-1 cursor-pointer active:scale-95 shrink-0 ml-2"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{isUndoing ? 'Undoing...' : 'Undo'}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* KPI Cards (2x2 on Mobile, 4 columns on Desktop) */}

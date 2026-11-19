@@ -3,45 +3,103 @@ from typing import Dict, Any, List, Optional
 
 
 MERCHANT_CATEGORY_MAP = {
+    # Food & Dining
     "swiggy": ("Online Food (Swiggy/Zomato)", "UPI"),
     "zomato": ("Online Food (Swiggy/Zomato)", "UPI"),
     "eatclub": ("Online Food (Swiggy/Zomato)", "UPI"),
     "mcdonalds": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "mcd": ("Online Food (Swiggy/Zomato)", "UPI"),
     "starbucks": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "chai": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "tea": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "coffee": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "lunch": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "dinner": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "breakfast": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "snacks": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "snack": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "biryani": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "pizza": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "burger": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "kfc": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "dominos": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "subway": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "restaurant": ("Online Food (Swiggy/Zomato)", "UPI"),
+    "haldiram": ("Online Food (Swiggy/Zomato)", "UPI"),
+
+    # Groceries
     "blinkit": ("Groceries (Blinkit/Zepto)", "UPI"),
     "zepto": ("Groceries (Blinkit/Zepto)", "UPI"),
     "instamart": ("Groceries (Blinkit/Zepto)", "UPI"),
     "bigbasket": ("Groceries (Blinkit/Zepto)", "UPI"),
     "dmart": ("Groceries (Blinkit/Zepto)", "UPI"),
+    "grocery": ("Groceries (Blinkit/Zepto)", "UPI"),
+    "groceries": ("Groceries (Blinkit/Zepto)", "UPI"),
+    "milk": ("Groceries (Blinkit/Zepto)", "UPI"),
+    "vegetables": ("Groceries (Blinkit/Zepto)", "UPI"),
+    "veggies": ("Groceries (Blinkit/Zepto)", "UPI"),
+    "fruits": ("Groceries (Blinkit/Zepto)", "UPI"),
+    "sabzi": ("Groceries (Blinkit/Zepto)", "UPI"),
+
+    # Commute & Travel
     "uber": ("Commute & Cabs (Ola/Uber)", "UPI"),
     "ola": ("Commute & Cabs (Ola/Uber)", "UPI"),
     "rapido": ("Commute & Cabs (Ola/Uber)", "UPI"),
     "metro": ("Commute & Cabs (Ola/Uber)", "Metro"),
-    "auto": ("Commute & Cabs (Ola/Uber)", "UPI"),
+    "auto": ("Commute & Cabs (Ola/Uber)", "Cash"),
+    "cab": ("Commute & Cabs (Ola/Uber)", "UPI"),
     "petrol": ("Commute & Cabs (Ola/Uber)", "UPI"),
+    "diesel": ("Commute & Cabs (Ola/Uber)", "UPI"),
     "fuel": ("Commute & Cabs (Ola/Uber)", "UPI"),
+    "toll": ("Commute & Cabs (Ola/Uber)", "UPI"),
+    "parking": ("Commute & Cabs (Ola/Uber)", "UPI"),
     "irctc": ("Travel & Vacations", "UPI"),
     "makemytrip": ("Travel & Vacations", "Credit Card"),
     "indigo": ("Travel & Vacations", "Credit Card"),
+    "flight": ("Travel & Vacations", "Credit Card"),
+    "train": ("Travel & Vacations", "UPI"),
+
+    # Shopping & Fashion
     "amazon": ("Shopping & Fashion", "Credit Card"),
     "flipkart": ("Shopping & Fashion", "UPI"),
     "myntra": ("Shopping & Fashion", "UPI"),
+    "ajio": ("Shopping & Fashion", "UPI"),
+    "meesho": ("Shopping & Fashion", "UPI"),
     "zara": ("Shopping & Fashion", "Credit Card"),
+    "clothes": ("Shopping & Fashion", "UPI"),
+    "shopping": ("Shopping & Fashion", "UPI"),
+
+    # Entertainment
     "netflix": ("Entertainment & OTT", "Credit Card"),
     "hotstar": ("Entertainment & OTT", "UPI"),
     "spotify": ("Entertainment & OTT", "UPI"),
+    "youtube": ("Entertainment & OTT", "UPI"),
+    "prime": ("Entertainment & OTT", "Credit Card"),
     "pvr": ("Entertainment & OTT", "Credit Card"),
     "inox": ("Entertainment & OTT", "Credit Card"),
+    "movie": ("Entertainment & OTT", "Credit Card"),
+
+    # Healthcare
     "apollo": ("Healthcare & Medicine", "UPI"),
     "1mg": ("Healthcare & Medicine", "UPI"),
     "pharmacy": ("Healthcare & Medicine", "UPI"),
     "doctor": ("Healthcare & Medicine", "UPI"),
+    "medicine": ("Healthcare & Medicine", "UPI"),
+    "medicines": ("Healthcare & Medicine", "UPI"),
+    "clinic": ("Healthcare & Medicine", "UPI"),
+
+    # Utilities
     "electricity": ("Utilities & Bills", "UPI"),
     "wifi": ("Utilities & Bills", "UPI"),
     "broadband": ("Utilities & Bills", "UPI"),
     "airtel": ("Utilities & Bills", "UPI"),
     "jio": ("Utilities & Bills", "UPI"),
+    "recharge": ("Utilities & Bills", "UPI"),
+    "cylinder": ("Utilities & Bills", "UPI"),
+    "gas": ("Utilities & Bills", "UPI"),
     "rent": ("Rent & Maintenance", "NetBanking"),
+    "maintenance": ("Rent & Maintenance", "NetBanking"),
+    "maid": ("Rent & Maintenance", "UPI"),
 }
 
 
@@ -68,11 +126,19 @@ def parse_natural_language_expense(
 
     # 2. Check for Lending (Udhar) vs Expense
     is_lending = bool(
-        re.search(r"\b(lent|loan|gave to|borrowed|udhar|udhari)\b", text_lower)
+        re.search(r"\b(lent|loan|gave to|borrowed|udhar|udhari|lend)\b", text_lower)
     )
     lending_direction = "lent"
     if "borrowed" in text_lower or "took from" in text_lower:
         lending_direction = "borrowed"
+
+    contact_name = "Friend"
+    if is_lending:
+        to_match = re.search(r"(?:to|from|for)\s+([a-zA-Z]+)", text)
+        if to_match:
+            candidate = to_match.group(1).strip()
+            if candidate.lower() not in ["the", "my", "our", "him", "her", "cash", "upi", "card", "rs", "inr", "rupees"]:
+                contact_name = candidate.capitalize()
 
     # 3. Detect Payment Mode
     payment_mode = "UPI"
@@ -88,7 +154,7 @@ def parse_natural_language_expense(
         payment_mode = "UPI"
 
     # 4. Detect Merchant & Category
-    detected_category_name = "Miscellaneous"
+    detected_category_name = "Family & Friends Support" if is_lending else "Miscellaneous"
     detected_merchant = ""
 
     for kw, (cat_name, def_mode) in MERCHANT_CATEGORY_MAP.items():
@@ -120,7 +186,8 @@ def parse_natural_language_expense(
 
     return {
         "amount": round(amount, 2),
-        "merchant": detected_merchant,
+        "merchant": contact_name if is_lending else detected_merchant,
+        "contact_name": contact_name,
         "category_id": cat_id,
         "category_name": detected_category_name,
         "payment_mode": payment_mode,

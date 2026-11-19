@@ -2,7 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useModalLock } from '../utils/modalManager';
-import { X, Mic, Check, HandCoins } from 'lucide-react';
+import { X, Mic, Check, HandCoins, Zap, RotateCcw, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+
+const QUICK_CHIPS = [
+  { label: '☕ Chai ₹20', text: 'Chai 20 cash' },
+  { label: '🍲 Swiggy ₹350', text: 'Swiggy 350 upi' },
+  { label: '🛺 Auto ₹80', text: 'Auto 80 cash' },
+  { label: '🥦 Blinkit ₹450', text: 'Blinkit 450 upi' },
+  { label: '⛽ Petrol ₹500', text: 'Petrol 500 upi' },
+  { label: '🤝 Lent ₹500', text: 'Lent 500 to Rahul' },
+];
 
 export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events = [], projects = [] }) {
   const [categories, setCategories] = useState([]);
@@ -11,6 +20,10 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
   const [parseNotice, setParseNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('expense'); // 'expense' or 'lending'
+  const [autoSaveVoice, setAutoSaveVoice] = useState(true);
+  const [showDetailedForm, setShowDetailedForm] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [isUndoing, setIsUndoing] = useState(false);
 
   // Lock body scroll and notify bottom bars when modal is open
   useModalLock(isOpen);
@@ -38,7 +51,11 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
     onResult: (transcript, isFinal) => {
       setNlInput(transcript);
       if (isFinal) {
-        handleAIParse(transcript);
+        if (autoSaveVoice) {
+          handleDirectQuickLog(transcript);
+        } else {
+          handleAIParse(transcript);
+        }
       }
     },
     onError: (err) => {
@@ -88,17 +105,101 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
       if (parsed.is_lending) {
         setActiveTab('lending');
         setDirection(parsed.lending_direction || 'lent');
-        setContactName(parsed.merchant || 'Friend');
+        setContactName(parsed.contact_name || parsed.merchant || 'Friend');
         setParseNotice(`Recognized as Udhar (${parsed.lending_direction}) entry`);
       } else {
         setActiveTab('expense');
         setParseNotice(`Auto-filled: ${parsed.category_name || 'Expense'} via ${parsed.payment_mode || 'UPI'}`);
       }
+      setShowDetailedForm(true);
     } catch (err) {
       console.error(err);
       setParseNotice('Could not auto-parse text. Please fill manually.');
+      setShowDetailedForm(true);
     } finally {
       setIsParsing(false);
+    }
+  };
+
+  const handleDirectQuickLog = async (overrideText) => {
+    const textToParse = (overrideText || nlInput || '').trim();
+    if (!textToParse) return;
+    setIsParsing(true);
+    setParseNotice('Parsing & saving instantly...');
+    try {
+      const parsed = await api.parseNL(textToParse);
+      if (!parsed.amount || parsed.amount <= 0) {
+        await handleAIParse(textToParse);
+        setParseNotice('Recognized details! Please enter the amount below.');
+        setShowDetailedForm(true);
+        return;
+      }
+
+      let savedRecord = null;
+      if (parsed.is_lending) {
+        savedRecord = await api.createLending({
+          contact_name: parsed.contact_name || parsed.merchant || 'Friend',
+          contact_phone: '',
+          contact_type: 'friend',
+          direction: parsed.lending_direction || 'lent',
+          principal_amount: parseFloat(parsed.amount),
+          lent_date: spentAt,
+          notes: parsed.notes,
+        });
+      } else {
+        savedRecord = await api.createExpense({
+          amount: parseFloat(parsed.amount),
+          category_id: parsed.category_id || (categories[0]?.id ?? null),
+          merchant: parsed.merchant || 'General Spend',
+          payment_mode: parsed.payment_mode || 'UPI',
+          spent_at: spentAt,
+          notes: parsed.notes,
+          event_id: eventId || null,
+          shared_project_id: sharedProjectId || null,
+        });
+      }
+
+      onExpenseAdded();
+      setLastSaved({
+        id: savedRecord.id,
+        type: parsed.is_lending ? 'lending' : 'expense',
+        amount: parsed.amount,
+        merchant: parsed.is_lending ? `Lent to ${parsed.contact_name || 'Friend'}` : (parsed.merchant || 'General Spend'),
+        payment_mode: parsed.payment_mode || 'UPI',
+      });
+      setNlInput('');
+      setParseNotice(`⚡ Successfully logged ₹${parsed.amount} to ${parsed.merchant || 'Spend'} (${parsed.payment_mode || 'UPI'})!`);
+
+      // Auto close after 1.5s if not undone
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
+    } catch (err) {
+      console.error(err);
+      setParseNotice(err.message || 'Auto-save failed. Opening detailed form.');
+      setShowDetailedForm(true);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!lastSaved) return;
+    setIsUndoing(true);
+    try {
+      if (lastSaved.type === 'lending') {
+        await api.deleteLending(lastSaved.id);
+      } else {
+        await api.deleteExpense(lastSaved.id);
+      }
+      setLastSaved(null);
+      setParseNotice('Transaction undone successfully.');
+      onExpenseAdded();
+    } catch (err) {
+      alert(err.message || 'Failed to undo transaction');
+    } finally {
+      setIsUndoing(false);
     }
   };
 
@@ -188,89 +289,171 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
 
         <div className="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 pb-8 sm:pb-6 momentum-scroll">
           
-          {/* Smart Quick Entry (Clean & Voice-enabled) */}
-          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+          {/* Smart 1-Tap Voice & NLP Quick-Log Hero */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-emerald-500/30 shadow-lg shadow-emerald-500/5 space-y-3">
+            
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Quick Text & Voice Entry
-              </span>
-              {isListening && (
-                <span className="text-[10px] text-rose-400 font-mono animate-pulse flex items-center gap-1 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  Listening to voice...
-                </span>
-              )}
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>1-Tap Voice & Quick Log</span>
+              </div>
+              <label className="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoSaveVoice}
+                  onChange={(e) => setAutoSaveVoice(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="hidden sm:inline">Auto-save on speech</span>
+                <span className="sm:hidden">Auto-save</span>
+              </label>
             </div>
+
+            {/* Listening Banner */}
+            {isListening && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between animate-pulse">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                  <span className="text-xs font-bold text-rose-300">Listening to voice...</span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-mono">Say e.g. "Swiggy 450" or "Auto 80 cash"</span>
+              </div>
+            )}
+
+            {/* Input Bar */}
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
                   type="text"
-                  placeholder={isListening ? "Listening... speak now" : 'e.g., "Paid 450 at Swiggy via UPI" or tap mic'}
+                  placeholder={isListening ? "Listening... speak now" : 'Speak or type: "Swiggy 450", "Auto 80 cash", "Lent 500 to Rahul"'}
                   value={nlInput}
                   onChange={(e) => setNlInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAIParse())}
-                  className={`w-full bg-slate-900 border rounded-lg pl-3 pr-9 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors ${
-                    isListening ? 'border-rose-500/60 ring-1 ring-rose-500/40' : 'border-slate-800 focus:border-emerald-500'
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleDirectQuickLog())}
+                  className={`w-full bg-slate-900 border rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all ${
+                    isListening ? 'border-rose-500/60 ring-2 ring-rose-500/30' : 'border-slate-800 focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/50'
                   }`}
                 />
                 <button
                   type="button"
                   onClick={toggleListening}
-                  title={isListening ? "Stop listening" : "Speak transaction details"}
-                  className={`absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors cursor-pointer ${
-                    isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  title={isListening ? "Stop listening" : "Speak expense details"}
+                  className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all cursor-pointer ${
+                    isListening 
+                      ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40 animate-pulse' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                 >
-                  <Mic className="w-3.5 h-3.5" />
+                  <Mic className="w-4 h-4" />
                 </button>
               </div>
 
               <button
                 type="button"
-                onClick={() => handleAIParse()}
+                onClick={() => handleDirectQuickLog()}
                 disabled={isParsing || !nlInput.trim()}
-                className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold transition-colors cursor-pointer shrink-0"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-40 text-slate-950 text-xs font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer shrink-0 flex items-center gap-1.5"
               >
-                {isParsing ? 'Parsing...' : 'Fill Form'}
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>{isParsing ? 'Saving...' : 'Quick Log'}</span>
               </button>
             </div>
+
+            {/* Quick 1-Tap Chips */}
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 font-semibold">
+                Instant Presets (1-Tap):
+              </p>
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                {QUICK_CHIPS.map((chip) => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => handleDirectQuickLog(chip.text)}
+                    disabled={isParsing}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-emerald-500/10 hover:border-emerald-500/40 border border-slate-800 text-[11px] text-slate-300 font-medium whitespace-nowrap active:scale-95 transition-all cursor-pointer"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Status notice */}
             {parseNotice && (
               <p className="text-[11px] text-emerald-400 flex items-center gap-1.5 pt-0.5">
                 <Check className="w-3.5 h-3.5 shrink-0" />
                 <span>{parseNotice}</span>
               </p>
             )}
+
+            {/* Success with Instant Undo */}
+            {lastSaved && (
+              <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-between animate-in fade-in">
+                <div className="flex items-center gap-2 text-xs text-emerald-300">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="truncate">
+                    Saved <strong>₹{lastSaved.amount}</strong> to {lastSaved.merchant} ({lastSaved.payment_mode})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={isUndoing}
+                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-semibold flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{isUndoing ? 'Undoing...' : 'Undo'}</span>
+                </button>
+              </div>
+            )}
+
           </div>
 
-          {/* Mode Switcher */}
-          <div className="grid grid-cols-2 gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+          {/* Toggle for Detailed Form */}
+          <div className="text-center pt-1">
             <button
               type="button"
-              onClick={() => setActiveTab('expense')}
-              className={`py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'expense'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={() => setShowDetailedForm(!showDetailedForm)}
+              className="text-xs text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-slate-800/60 cursor-pointer"
             >
-              Regular / Event Spend
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('lending')}
-              className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-medium transition-all ${
-                activeTab === 'lending'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <HandCoins className="w-3.5 h-3.5" />
-              <span>Udhar (Lent / Borrowed)</span>
+              <span>{showDetailedForm ? 'Hide Detailed Breakdown' : 'Or fill detailed manual breakdown'}</span>
+              {showDetailedForm ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
           </div>
 
-          {/* Main Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Mode Switcher & Detailed Form (Expandable) */}
+          {showDetailedForm && (
+            <div className="space-y-4 pt-2 border-t border-slate-800/80 animate-in fade-in duration-200">
+              
+              {/* Mode Switcher */}
+              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('expense')}
+                  className={`py-2 rounded-lg font-medium transition-all ${
+                    activeTab === 'expense'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Regular / Event Spend
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('lending')}
+                  className={`flex items-center justify-center gap-1.5 py-2 rounded-lg font-medium transition-all ${
+                    activeTab === 'lending'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <HandCoins className="w-3.5 h-3.5" />
+                  <span>Udhar (Lent / Borrowed)</span>
+                </button>
+              </div>
+
+              {/* Main Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
             
             {/* Amount & Date */}
             <div className="space-y-3">
@@ -558,6 +741,9 @@ export default function QuickAddModal({ isOpen, onClose, onExpenseAdded, events 
             </div>
 
           </form>
+
+            </div>
+          )}
 
         </div>
 
